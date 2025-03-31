@@ -1,5 +1,14 @@
 server:
-  port: 9002
+  port: 9004
 spring:
   application:
     name: order-service
+  r2dbc:
+    username: root
+    password: 1234
+    url: ${SPRING_R2DBC_URL:r2dbc:mysql://localhost:3307/order}
+  
+  //? ?? ?? ??
+
+menu-service:
+  url: "http://localhost:9003"
