@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,7 +25,7 @@ public class OrderService {
         return orderRepository.findAll();
     }
 
-    public Mono<Order> submitOrder(Order order) {
+    public Mono<Order> submitOrder(@RequestBody Order order) {
 
         return menuClientAdapter.getMenuByUid(order.menuUid())
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("menu not found" + order.menuUid())))
@@ -42,5 +43,15 @@ public class OrderService {
                             streamBridge.send("orderCreated-out-0", message);
                         });
 
+    }
+
+    public Mono<Order> cancelOrder(Integer uid) {
+        return orderRepository.findById(uid)
+                .flatMap(order -> {
+                    Order cancelledOrder = Order.builder()
+                            .status(OrderStatus.ORDER_CANCELLED)
+                            .build();
+                    return orderRepository.save(cancelledOrder);
+                });
     }
 }

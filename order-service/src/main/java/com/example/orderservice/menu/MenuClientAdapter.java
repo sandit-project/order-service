@@ -93,7 +93,7 @@ public class MenuClientAdapter {
                 .onErrorResume(Exception.class, exception -> Mono.empty());
     }
 
-    public Mono deleteMenu(@PathVariable("uid") Integer uid) {
+    public Mono<Void> deleteMenu(@PathVariable("uid") Integer uid) {
         return Mono.fromRunnable(() -> menuClient.deleteMenu(uid))
                 .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(10))
@@ -101,7 +101,7 @@ public class MenuClientAdapter {
                         Retry.backoff(3, Duration.ofMillis(100))
                 )
                 .onErrorResume(FeignException.NotFound.class, exception -> Mono.empty())
-                .onErrorResume(Exception.class, exception -> Mono.empty());
+                .onErrorResume(Exception.class, exception -> Mono.empty()).then();
 
     }
 }
