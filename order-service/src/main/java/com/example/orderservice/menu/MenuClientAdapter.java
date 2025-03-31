@@ -4,7 +4,7 @@ import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.bind.annotation.PathVariable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -20,7 +20,7 @@ public class MenuClientAdapter {
     private final MenuClient menuClient;
 
     public Mono<Menu> getMenuByUid(Integer uid) {
-        return Mono.fromCallable(() -> menuClient.getMenu(uid))
+        return Mono.fromCallable(() -> menuClient.getMenuByUid(uid))
                 .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(10))
                 .retryWhen(
@@ -80,5 +80,28 @@ public class MenuClientAdapter {
                 )
                 .onErrorResume(FeignException.NotFound.class, exception -> Mono.empty())
                 .onErrorResume(Exception.class, exception -> Mono.empty());
+    }
+
+    public Mono<Menu> updateMenu(Integer uid, Menu menu) {
+        return Mono.fromCallable(() -> menuClient.updateMenu(uid, menu))
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(Duration.ofSeconds(10))
+                .retryWhen(
+                        Retry.backoff(3, Duration.ofMillis(100))
+                )
+                .onErrorResume(FeignException.NotFound.class, exception -> Mono.empty())
+                .onErrorResume(Exception.class, exception -> Mono.empty());
+    }
+
+    public Mono deleteMenu(@PathVariable("uid") Integer uid) {
+        return Mono.fromRunnable(() -> menuClient.deleteMenu(uid))
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(Duration.ofSeconds(10))
+                .retryWhen(
+                        Retry.backoff(3, Duration.ofMillis(100))
+                )
+                .onErrorResume(FeignException.NotFound.class, exception -> Mono.empty())
+                .onErrorResume(Exception.class, exception -> Mono.empty());
+
     }
 }

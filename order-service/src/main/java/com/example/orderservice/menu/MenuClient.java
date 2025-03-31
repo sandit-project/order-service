@@ -9,7 +9,7 @@ import java.util.List;
 public interface MenuClient {
 
     @GetMapping("/menu/{uid}")
-    Menu getMenu(@PathVariable ("uid") Integer uid);
+    Menu getMenuByUid(@PathVariable ("uid") Integer uid);
 
     @GetMapping("/menu")
     List<Menu> getMenus();
@@ -19,5 +19,8 @@ public interface MenuClient {
 
     @PutMapping("/menu/{uid}")
     Menu updateMenu(@PathVariable ("uid") Integer uid, @RequestBody Menu menu);
+
+    @DeleteMapping("/menu/{uid}")
+    void deleteMenu(@PathVariable ("uid") Integer uid);
 
 }
