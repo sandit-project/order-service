@@ -11,8 +11,11 @@ public interface MenuClient {
     @GetMapping("/menu/{uid}")
     Menu getMenuByUid(@PathVariable ("uid") Integer uid);
 
+    //모든 메뉴 조회
     @GetMapping("/menu")
     List<Menu> getMenus();
+
+    //카테고리별 메뉴 조회 (추후에 추가 예정)
 
     @PostMapping("/menu")
     Menu createMenu(@RequestBody Menu menu);

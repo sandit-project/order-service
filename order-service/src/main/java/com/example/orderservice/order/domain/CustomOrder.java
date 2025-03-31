@@ -1,9 +1,10 @@
 package com.example.orderservice.order.domain;
 
+import lombok.Builder;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+@Builder
 @Table("custom_order")
 public record CustomOrder(
         @Id

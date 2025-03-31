@@ -9,7 +9,8 @@ public enum OrderStatus {
     PREPARING_DELIVERY,// 배달 준비
     OUT_FOR_DELIVERY,  // 배달 중
     DELIVERED,         // 배달 완료
-    ORDER_FAILED       // 주문 실패
+    ORDER_FAILED,       // 주문 실패
+    ORDER_CANCELLED  //주문 취소
     
     //예약은 아직 안 넣음
 }

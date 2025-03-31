@@ -30,9 +30,9 @@ public class MenuService {
                 .doOnNext(enrollMenu -> log.info("enroll menu: {}", enrollMenu));
     }
 
-    public Mono<Menu> updateMenu(Menu menu) {
-        return menuClientAdapter.enrollMenu(menu)
-                .doOnNext(enrollMenu -> log.info("update menu: {}", updateMenu(enrollMenu)));
+    public Mono<Menu> updateMenu(Integer uid, Menu menu) {
+        return menuClientAdapter.updateMenu(uid, menu)
+                .doOnNext(enrollMenu -> log.info("update menu: {}", updateMenu(uid, menu)));
     }
 
     public Mono<Void> deleteMenu(@PathVariable("uid") Integer uid) {

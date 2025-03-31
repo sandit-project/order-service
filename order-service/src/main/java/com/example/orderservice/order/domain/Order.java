@@ -1,17 +1,16 @@
 package com.example.orderservice.order.domain;
 
-import io.r2dbc.spi.Parameter;
 import lombok.Builder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
 @Builder
-@Table("order")
+//예약어로 인해 orders로 변경
+@Table("orders")
 public record Order (
         @Id
         Integer uid,
