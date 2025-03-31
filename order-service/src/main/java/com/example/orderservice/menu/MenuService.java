@@ -3,6 +3,7 @@ package com.example.orderservice.menu;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -27,5 +28,15 @@ public class MenuService {
     public Mono<Menu> enrollMenu(Menu menu) {
         return menuClientAdapter.enrollMenu(menu)
                 .doOnNext(enrollMenu -> log.info("enroll menu: {}", enrollMenu));
+    }
+
+    public Mono<Menu> updateMenu(Menu menu) {
+        return menuClientAdapter.enrollMenu(menu)
+                .doOnNext(enrollMenu -> log.info("update menu: {}", updateMenu(enrollMenu)));
+    }
+
+    public Mono<Void> deleteMenu(@PathVariable("uid") Integer uid) {
+        return menuClientAdapter.deleteMenu(uid);
+
     }
 }

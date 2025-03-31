@@ -7,8 +7,20 @@ spring:
     username: root
     password: 1234
     url: ${SPRING_R2DBC_URL:r2dbc:mysql://localhost:3307/order}
+  cloud:
+    function:
+      definition: dispatchOrder
+    stream:
+      bindings:
+        dispatchOrder-in-0:
+          destination: order-dispatched
+          content-type: application/json
+          group: ${spring.application.name}
+        orderCreated-out-0:
+          destination: order-created
+          content-type: application/json
   
   //? ?? ?? ??
 
 menu-service:
-  url: "http://localhost:9003"
+  url: "${MENU_SERVICE_URL:http://localhost:9003}"

@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS `order` (
                                        uid BIGINT PRIMARY KEY NOT NULL AUTO_INCREMENT,
                                        user_uid BIGINT,
                                        social_uid BIGINT,
+                                        // 추가 여부 물어보기
+                                        menu_uid BIGINT NOT NULL,
                                        menu_name VARCHAR(255) NOT NULL,
     amount INT NOT NULL,
     price BIGINT NOT NULL,
@@ -14,7 +16,9 @@ CREATE TABLE IF NOT EXISTS `order` (
     reservation_date TIMESTAMP,
     version INT NOT NULL,
     FOREIGN KEY (user_uid) REFERENCES auth.user(uid),
-    FOREIGN KEY (social_uid) REFERENCES auth.social(uid)
+    FOREIGN KEY (social_uid) REFERENCES auth.social(uid),
+    //추가 여부 물어보기
+    FOREIGN KEY (menu_uid) REFERENCES menu.menu(uid)
     );
 
 
