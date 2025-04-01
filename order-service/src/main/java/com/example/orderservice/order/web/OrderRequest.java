@@ -7,16 +7,21 @@ import jakarta.validation.constraints.NotNull;
 public record OrderRequest (
         Integer userUid,
         Integer socialUid,
-        //일단은 추가함 (아니면 빼기)
-        @NotNull(message = "menu must be defined")
-        Integer menuUid,
         @NotBlank(message = "menu must be defined")
         String menuName,
         @NotNull(message = "amount must be defined")
         @Min(value = 1, message = "You must order at least 1 item.")
         int amount,
+        @NotNull(message = "price must be defined")
+        @Min(value = 1, message = "Price at least 1")
+        int price,
+        @NotBlank(message = "calorie must be defined")
+        @Min(value = 1, message = "Calorie at least 1")
+        Double calorie,
         @NotBlank(message = "payment must be defined")
         @Min(value = 1, message = "You must choose at least 1 payment method.")
-        String payment
+        String payment,
+        @NotBlank(message = "merchantUid must be defined")
+        String merchantUid
 ) {
 }

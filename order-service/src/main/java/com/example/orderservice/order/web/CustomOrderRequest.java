@@ -23,11 +23,11 @@ public record CustomOrderRequest(
 
         @NotNull(message = "bread must be defined")
         Integer bread,
-        @NotNull(message = "main material 1 must be defined")
-        Integer mainMaterial1,
-        Integer mainMaterial2,
-        Integer mainMaterial3,
-        Integer cheeze,
+        @NotNull(message = "material 1 must be defined")
+        Integer material1,
+        Integer material2,
+        Integer material3,
+        Integer cheese,
         @NotNull(message = "vegetable 1 must be defined")
         Integer vegetable1,
         Integer vegetable2,
