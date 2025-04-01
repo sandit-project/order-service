@@ -38,28 +38,49 @@ public class OrderService {
         return orderRepository.findByUserUid(userUid);
     }
 
-    public Mono<Order> submitOrder(@RequestBody Order order) {
+    public Mono<Order> submitOrder(@RequestBody OrderRequest orderRequest) {
+
+        Order order = Order.builder()
+                .userUid(orderRequest.userUid())
+                .socialUid(orderRequest.socialUid())
+                .menuName(orderRequest.menuName())
+                .amount(orderRequest.amount())
+                .price(orderRequest.price())
+                .calorie(orderRequest.calorie())
+                .payment(orderRequest.payment())
+                .status(PAYMENT_PENDING)
+                .build();
 
         return menuClientAdapter.validateMenuName(order.menuName())
                 .flatMap(valid -> {
-                            if(!valid) {
-                                return Mono.error(new IllegalArgumentException("The menu is not exist" + order.menuName()));
-                            }
+                    if (!valid) {
+                        return Mono.error(new IllegalArgumentException("The menu does not exist: " + order.menuName()));
+                    }
+                    return orderRepository.save(order)
+                            .flatMap(savedOrder -> updateOrderStatus(savedOrder.uid(), PAYMENT_PENDING))
+                            .thenReturn(order);
+                });
 
-                            Order orderToSave = Order.builder()
-                            .userUid(order.userUid())
-                            .menuName(order.menuName())
-                            .amount(order.amount())
-                            .price(order.price())
-                            .calorie(order.calorie())
-                            .status(PAYMENT_COMPLETED)
-                            .build();
-                    return orderRepository.save(orderToSave);
-                })
-                .doOnNext( savedOrder -> {
-                            OrderCreatedMessage message = new OrderCreatedMessage(savedOrder.uid(), savedOrder.status());
-                            streamBridge.send("orderCreated-out-0", message);
-            });
+//        return menuClientAdapter.validateMenuName(orderRequest.menuName())
+//                .flatMap(valid -> {
+//                            if(!valid) {
+//                                return Mono.error(new IllegalArgumentException("The menu is not exist" + order.menuName()));
+//                            }
+//
+//                            Order orderToSave = Order.builder()
+//                            .userUid(order.userUid())
+//                            .menuName(order.menuName())
+//                            .amount(order.amount())
+//                            .price(order.price())
+//                            .calorie(order.calorie())
+//                            .status(PAYMENT_PENDING)
+//                            .build();
+//                    return orderRepository.save(orderToSave);
+//                })
+//                .doOnNext( savedOrder -> {
+//                            OrderCreatedMessage message = new OrderCreatedMessage(savedOrder.uid(), savedOrder.status());
+//                            streamBridge.send("orderCreated-out-0", message);
+//            });
 
     }
 
