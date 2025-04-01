@@ -26,7 +26,6 @@ public class CustomOrderController {
         Order order = Order.builder()
                 .userUid(customOrderRequest.userUid())
                 .socialUid(customOrderRequest.socialUid())
-                .menuUid(customOrderRequest.menuUid())
                 .menuName(customOrderRequest.menuName())
                 .payment(customOrderRequest.payment())
                 .build();
@@ -37,9 +36,9 @@ public class CustomOrderController {
                     CustomOrder customOrder = CustomOrder.builder()
                         .uid(savedOrder.uid())
                         .bread(customOrderRequest.bread())
-                        .mainMaterial1(customOrderRequest.mainMaterial1())
-                        .mainMaterial2(customOrderRequest.mainMaterial2())
-                        .mainMaterial3(customOrderRequest.mainMaterial3())
+                        .material1(customOrderRequest.material1())
+                        .material2(customOrderRequest.material2())
+                        .material3(customOrderRequest.material3())
                         .build();
 
                     return customOrderService.submitCustomOrder(customOrderRequest, order.uid(), customOrderRequest.menuUid())

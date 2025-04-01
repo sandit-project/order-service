@@ -33,6 +33,20 @@ public class MenuClientAdapter {
                 });
     }
 
+    //메뉴 이름만 받아오기
+    public Mono<String> getMenuByNameByUid(Integer uid) {
+        return Mono.fromCallable(() -> menuClient.getMenuByUid(uid))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(Menu::menuName);
+    }
+
+    //메뉴 이름 검증 로직
+    public Mono<Boolean> validateMenuName(String menuName) {
+        return getAllMenus()
+                .filter(menu -> menu.menuName().equalsIgnoreCase(menuName))
+                .hasElements();
+    }
+
     public Flux<Menu> getAllMenus() {
         return Mono.fromCallable(() -> menuClient.getMenus())
                 .subscribeOn(Schedulers.boundedElastic())
@@ -55,10 +69,10 @@ public class MenuClientAdapter {
                         .price(menu.price())
                         .calorie(menu.calorie())
                         .bread(menu.bread())
-                        .mainMaterial1(menu.mainMaterial1())
-                        .mainMaterial2(menu.mainMaterial2())
-                        .mainMaterial3(menu.mainMaterial3())
-                        .cheeze(menu.cheeze())
+                        .material1(menu.material1())
+                        .material2(menu.material2())
+                        .material3(menu.material3())
+                        .cheese(menu.cheese())
                         .vegetable1(menu.vegetable1())
                         .vegetable2(menu.vegetable2())
                         .vegetable3(menu.vegetable3())

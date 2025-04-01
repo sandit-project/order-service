@@ -25,17 +25,17 @@ public class CustomOrderService {
 
     @PostMapping
     public Mono<CustomOrder> submitCustomOrder(@RequestBody CustomOrderRequest customOrderRequest,
-                                         Integer orderUid, Integer menuUid) {
+                                         Integer uid, Integer menuUid) {
         return menuClientAdapter.getMenuByUid(menuUid)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Menu not found with id: " +menuUid)))
                 .flatMap(menu -> {
                     CustomOrder customOrder = CustomOrder.builder()
-                            .uid(orderUid)
+                            .uid(uid)
                             .bread(customOrderRequest.bread())
-                            .mainMaterial1(customOrderRequest.mainMaterial1())
-                            .mainMaterial2(customOrderRequest.mainMaterial2())
-                            .mainMaterial3(customOrderRequest.mainMaterial3())
-                            .cheeze(customOrderRequest.cheeze())
+                            .material1(customOrderRequest.material1())
+                            .material2(customOrderRequest.material2())
+                            .material3(customOrderRequest.material3())
+                            .cheese(customOrderRequest.cheese())
                             .vegetable1(customOrderRequest.vegetable1())
                             .vegetable2(customOrderRequest.vegetable2())
                             .vegetable3(customOrderRequest.vegetable3())

@@ -9,20 +9,21 @@ import org.springframework.data.relational.core.mapping.Table;
 import java.time.LocalDateTime;
 
 @Builder
-//예약어로 인해 orders로 변경
-@Table("orders")
+@Table("order")
 public record Order (
         @Id
         Integer uid,
         Integer userUid,
         Integer socialUid,
-        //일단은 추가함 (아니면 빼기)
-        Integer menuUid,
         String menuName,
         int amount,
         Integer price,
         Double calorie,
+        //주소 추가?
+        String address,
         String payment,
+        //결제 식별자
+        String merchantUid,
         OrderStatus status,
         @CreatedDate LocalDateTime createdDate,
         LocalDateTime reservationDate,
