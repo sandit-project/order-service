@@ -34,16 +34,21 @@ public class OrderController {
     }
 
     //주문 승인
+//    @PostMapping
+//    public Mono<Order> submitOrder(@Valid @RequestBody OrderRequest orderRequest) {
+//        Order order = Order.builder()
+//                .userUid(orderRequest.userUid())
+//                .socialUid(orderRequest.socialUid())
+//                .menuName(orderRequest.menuName())
+//                .amount(orderRequest.amount())
+//                .payment(orderRequest.payment())
+//                .build();
+//        return orderService.submitOrder(order);
+//    }
+
     @PostMapping
     public Mono<Order> submitOrder(@Valid @RequestBody OrderRequest orderRequest) {
-        Order order = Order.builder()
-                .userUid(orderRequest.userUid())
-                .socialUid(orderRequest.socialUid())
-                .menuName(orderRequest.menuName())
-                .amount(orderRequest.amount())
-                .payment(orderRequest.payment())
-                .build();
-        return orderService.submitOrder(order);
+        return orderService.submitOrder(orderRequest);
     }
 
     //주문 취소
