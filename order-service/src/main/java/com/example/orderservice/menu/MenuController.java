@@ -1,7 +1,5 @@
-package com.example.orderservice.order.web;
+package com.example.orderservice.menu;
 
-import com.example.orderservice.menu.Menu;
-import com.example.orderservice.menu.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -17,6 +15,11 @@ public class MenuController {
     @GetMapping
     public Flux<Menu> getMenus() {
         return menuService.getMenus();
+    }
+
+    @GetMapping("/{uid}")
+    public Mono<Menu> getMenuByUid(@PathVariable Integer uid) {
+        return menuService.getMenuByUid(uid);
     }
 
     @PostMapping

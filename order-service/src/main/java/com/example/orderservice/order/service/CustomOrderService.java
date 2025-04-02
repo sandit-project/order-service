@@ -1,16 +1,17 @@
-package com.example.orderservice.order.domain;
+package com.example.orderservice.order.service;
 
 import com.example.orderservice.menu.MenuClient;
 import com.example.orderservice.menu.MenuClientAdapter;
-import com.example.orderservice.order.web.CustomOrderRequest;
+import com.example.orderservice.order.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,15 +20,14 @@ public class CustomOrderService {
     private final static Logger log = LoggerFactory.getLogger(OrderService.class);
     private final OrderRepository orderRepository;
     private final MenuClient menuClient;
-    private final StreamBridge streamBridge;
     private final MenuClientAdapter menuClientAdapter;
     private final CustomOrderRepository customOrderRepository;
 
     @PostMapping
     public Mono<CustomOrder> submitCustomOrder(@RequestBody CustomOrderRequest customOrderRequest,
-                                         Integer uid, Integer menuUid) {
-        return menuClientAdapter.getMenuByUid(menuUid)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Menu not found with id: " +menuUid)))
+                                               Integer uid, List<CartItem> items) {
+        return menuClientAdapter.getMenuByUid(uid)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Menu not found with id: ")))
                 .flatMap(menu -> {
                     CustomOrder customOrder = CustomOrder.builder()
                             .uid(uid)

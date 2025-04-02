@@ -1,11 +1,12 @@
 package com.example.orderservice.menu;
 
+import com.example.orderservice.dummy.MenuClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient (name = "menuClient", url = "${menu-service.url}")
+@FeignClient (name = "menuClient", url = "${menu-service.url}", fallback = MenuClientFallback.class)
 public interface MenuClient {
 
     @GetMapping("/menu/{uid}")

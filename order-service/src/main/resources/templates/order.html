@@ -2,15 +2,38 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>결제 테스트</title>
+    <title>주문 테스트</title>
     <!-- jQuery 로드 -->
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <!-- Iamport 결제 스크립트 로드 -->
     <script src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
-    <script th:src="@{/js/script.js}"></script>
+    <link rel="stylesheet" th:href="@{/css/order.css}">
+    <script th:src="@{/js/order.js}"></script>
 </head>
 <body>
-<h1>결제 테스트 페이지</h1>
+<h1>주문 테스트 페이지</h1>
+<!-- 상품 정보 표시 영역 -->
+<div id="menuInfo">
+    <input type="hidden" id="menuUid" th:value="${menu.uid()}" />
+    <div id="menuName" th:text="${menu != null ? menu.menuName : '메뉴 정보 없음'}"></div>
+    <div id="menuPrice" th:text="${menu != null ? #numbers.formatInteger(menu.price, 3, 'COMMA') + '원': '메뉴 정보 없음'}"></div>
+</div>
+<!-- 주문자 정보 입력 영역 -->
+<div id="userInfo">
+    <h3>배송지 정보 입력</h3>
+    <label for="buyerName">이름</label>
+    <input type="text" id="buyerName" placeholder="이름 입력" required><br>
+
+    <label for="buyerTel">전화번호</label>
+    <input type="text" id="buyerTel" placeholder="010-1234-5678" required><br>
+
+    <label for="buyerAddr">주소</label>
+    <input type="text" id="buyerAddr" placeholder="주소 입력" required><br>
+
+    <label for="buyerPostcode">우편번호</label>
+    <input type="text" id="buyerPostcode" placeholder="우편번호 입력" required><br>
+</div>
+<!-- 결제 버튼 -->
 <button id="payButton">결제하기</button>
 </body>
 </html>

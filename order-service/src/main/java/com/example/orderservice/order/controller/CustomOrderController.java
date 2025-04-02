@@ -1,9 +1,8 @@
-package com.example.orderservice.order.web;
+package com.example.orderservice.order.controller;
 
-import com.example.orderservice.order.domain.CustomOrder;
-import com.example.orderservice.order.domain.CustomOrderService;
-import com.example.orderservice.order.domain.Order;
-import com.example.orderservice.order.domain.OrderService;
+import com.example.orderservice.order.domain.*;
+import com.example.orderservice.order.service.CustomOrderService;
+import com.example.orderservice.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,22 +21,10 @@ public class CustomOrderController {
 
     @PostMapping
     public Mono<Order> submitCustomOrder(@Valid @RequestBody CustomOrderRequest customOrderRequest) {
-        // 1. 일반 주문용 OrderRequest 생성
-        OrderRequest orderRequest = new OrderRequest(
-                customOrderRequest.userUid(),
-                customOrderRequest.socialUid(),
-                customOrderRequest.menuName(),
-                customOrderRequest.amount(),
-                5000, // 예시: 가격(Price). 실제 로직에 맞게 세팅
-                0.0,  // 예시: 칼로리(Calorie). 필요하다면 계산해서 넣기
-                customOrderRequest.payment(),
-                "merchant_" + System.currentTimeMillis() // 임의로 merchantUid 생성 예시
-        );
+        OrderRequest orderRequest = customOrderRequest.orderRequest();
 
-        // 2. 일반 주문(결제 등) 처리
         return orderService.submitOrder(orderRequest)
                 .flatMap(savedOrder -> {
-                    // 3. 일반 주문이 성공하면, 커스텀 주문 정보 저장
                     CustomOrder customOrder = CustomOrder.builder()
                             .uid(savedOrder.uid()) // Order의 uid와 연동
                             .bread(customOrderRequest.bread())
@@ -59,7 +46,7 @@ public class CustomOrderController {
                             .build();
 
                     // 커스텀 주문 DB 저장
-                    return customOrderService.submitCustomOrder(customOrderRequest, savedOrder.uid(), customOrderRequest.menuUid())
+                    return customOrderService.submitCustomOrder(customOrderRequest, savedOrder.uid(), orderRequest.items())
                             // 커스텀 주문 저장이 끝나면 최종적으로 savedOrder 반환
                             .thenReturn(savedOrder);
                 });

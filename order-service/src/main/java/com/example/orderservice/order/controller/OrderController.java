@@ -1,7 +1,9 @@
-package com.example.orderservice.order.web;
+package com.example.orderservice.order.controller;
 
+import com.example.orderservice.order.domain.CartItem;
 import com.example.orderservice.order.domain.Order;
-import com.example.orderservice.order.domain.OrderService;
+import com.example.orderservice.order.domain.OrderRequest;
+import com.example.orderservice.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -34,20 +36,17 @@ public class OrderController {
     }
 
     //주문 승인
-//    @PostMapping
-//    public Mono<Order> submitOrder(@Valid @RequestBody OrderRequest orderRequest) {
-//        Order order = Order.builder()
-//                .userUid(orderRequest.userUid())
-//                .socialUid(orderRequest.socialUid())
-//                .menuName(orderRequest.menuName())
-//                .amount(orderRequest.amount())
-//                .payment(orderRequest.payment())
-//                .build();
-//        return orderService.submitOrder(order);
-//    }
-
     @PostMapping
     public Mono<Order> submitOrder(@Valid @RequestBody OrderRequest orderRequest) {
+        for (CartItem item : orderRequest.items()) {
+            System.out.println("메뉴: " + item.menuName());
+            System.out.println("수량: " + item.amount());
+            System.out.println("가격: " + item.price());
+        }
+
+        System.out.println("주소: " + orderRequest.address());
+        System.out.println("결제수단: " + orderRequest.payment());
+
         return orderService.submitOrder(orderRequest);
     }
 
@@ -57,7 +56,7 @@ public class OrderController {
         return orderService.cancelOrder(uid);
     }
 
-    //주문 상태 변경
+    //주문 상태 변경 (이건 큐로 바꿔야함)
     @PatchMapping("/{uid}/complete-order")
     public Mono<Order> completeOrder(@PathVariable Integer uid) {
         return orderService.completeOrder(uid);

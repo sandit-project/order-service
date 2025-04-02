@@ -1,0 +1,47 @@
+/* order.css */
+
+body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #f9f9f9;
+    margin: 0;
+    padding: 30px;
+    text-align: center;
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 30px;
+}
+
+#menuInfo {
+    display: inline-block;
+    background-color: white;
+    padding: 20px 30px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    text-align: left;
+}
+
+#menuInfo div {
+    margin: 10px 0;
+    font-size: 18px;
+    color: #444;
+}
+
+#payButton {
+    padding: 12px 24px;
+    font-size: 18px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#payButton:hover {
+    background-color: #45a049;
+}
+
