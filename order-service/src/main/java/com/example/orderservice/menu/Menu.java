@@ -26,7 +26,7 @@ public record Menu (
          Integer sauce1,
          Integer sauce2,
          Integer sauce3,
-         File image,
+         String image,
          String status
 ){
 }

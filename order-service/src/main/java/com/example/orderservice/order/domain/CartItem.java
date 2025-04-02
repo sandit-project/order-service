@@ -1,12 +1,11 @@
-package com.example.orderservice.order.web;
+package com.example.orderservice.order.domain;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record OrderRequest (
-        Integer userUid,
-        Integer socialUid,
+//메뉴 1개의 정보
+public record CartItem (
         @NotBlank(message = "menu must be defined")
         String menuName,
         @NotNull(message = "amount must be defined")
@@ -17,11 +16,7 @@ public record OrderRequest (
         int price,
         @NotBlank(message = "calorie must be defined")
         @Min(value = 1, message = "Calorie at least 1")
-        Double calorie,
-        @NotBlank(message = "payment must be defined")
-        @Min(value = 1, message = "You must choose at least 1 payment method.")
-        String payment,
-        @NotBlank(message = "merchantUid must be defined")
-        String merchantUid
-) {
+        Double calorie
+){
+
 }

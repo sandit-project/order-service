@@ -1,13 +1,14 @@
-package com.example.orderservice.order.domain;
+package com.example.orderservice.order.service;
 
-import com.example.orderservice.event.OrderCreatedMessage;
 import com.example.orderservice.menu.MenuClient;
 import com.example.orderservice.menu.MenuClientAdapter;
-import com.example.orderservice.order.web.OrderRequest;
+import com.example.orderservice.order.domain.Order;
+import com.example.orderservice.order.domain.OrderRepository;
+import com.example.orderservice.order.domain.OrderRequest;
+import com.example.orderservice.order.domain.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Flux;
@@ -21,7 +22,7 @@ public class OrderService {
     private final static Logger log = LoggerFactory.getLogger(OrderService.class);
     private final OrderRepository orderRepository;
     private final MenuClient menuClient;
-    private final StreamBridge streamBridge;
+    //private final StreamBridge streamBridge;
     private final MenuClientAdapter menuClientAdapter;
 
     //전체 주문 조회
@@ -38,50 +39,48 @@ public class OrderService {
         return orderRepository.findByUserUid(userUid);
     }
 
-    public Mono<Order> submitOrder(@RequestBody OrderRequest orderRequest) {
+    public Mono<Order> submitOrder(OrderRequest orderRequest) {
+        // 1. 모든 CartItem의 메뉴명을 검증: 하나라도 유효하지 않으면 에러 발생
+        Mono<Void> validateItems = Flux.fromIterable(orderRequest.items())
+                .flatMap(item ->
+                        menuClientAdapter.validateMenuName(item.menuName())
+                                .flatMap(isValid -> {
+                                    if (!isValid) {
+                                        return Mono.error(new IllegalArgumentException(
+                                                "유효하지 않은 메뉴: " + item.menuName()));
+                                    }
+                                    return Mono.empty();
+                                })
+                )
+                .then();
 
-        Order order = Order.builder()
-                .userUid(orderRequest.userUid())
-                .socialUid(orderRequest.socialUid())
-                .menuName(orderRequest.menuName())
-                .amount(orderRequest.amount())
-                .price(orderRequest.price())
-                .calorie(orderRequest.calorie())
-                .payment(orderRequest.payment())
-                .status(PAYMENT_PENDING)
-                .build();
+        // 2. 검증이 완료되면 Order를 생성 및 저장 후, 각 CartItem을 OrderItem으로 매핑하여 저장
+        return validateItems.then(Mono.defer(() -> {
+            // Order 생성 (여기서는 OrderRequest의 공통 필드를 사용)
+            Order order = Order.builder()
+                    .userUid(orderRequest.userUid())
+                    .socialUid(orderRequest.socialUid())
+                    .payment(orderRequest.payment())
+                    .merchantUid(orderRequest.merchantUid())
+                    // 기타 Order 관련 필드들...
+                    .build();
+            return orderRepository.save(order);
+        })).flatMap(savedOrder -> {
+            // 3. 각 CartItem을 OrderItem으로 변환
+            List<OrderItem> orderItems = orderRequest.items().stream()
+                    .map(item -> OrderItem.builder()
+                            .orderId(savedOrder.uid()) // 주문의 pk를 외래키로 사용
+                            .menuName(item.menuName())
+                            .amount(item.amount())
+                            .price(item.price())
+                            .calorie(item.calorie())
+                            .build())
+                    .collect(Collectors.toList());
 
-        return menuClientAdapter.validateMenuName(order.menuName())
-                .flatMap(valid -> {
-                    if (!valid) {
-                        return Mono.error(new IllegalArgumentException("The menu does not exist: " + order.menuName()));
-                    }
-                    return orderRepository.save(order)
-                            .flatMap(savedOrder -> updateOrderStatus(savedOrder.uid(), PAYMENT_PENDING))
-                            .thenReturn(order);
-                });
-
-//        return menuClientAdapter.validateMenuName(orderRequest.menuName())
-//                .flatMap(valid -> {
-//                            if(!valid) {
-//                                return Mono.error(new IllegalArgumentException("The menu is not exist" + order.menuName()));
-//                            }
-//
-//                            Order orderToSave = Order.builder()
-//                            .userUid(order.userUid())
-//                            .menuName(order.menuName())
-//                            .amount(order.amount())
-//                            .price(order.price())
-//                            .calorie(order.calorie())
-//                            .status(PAYMENT_PENDING)
-//                            .build();
-//                    return orderRepository.save(orderToSave);
-//                })
-//                .doOnNext( savedOrder -> {
-//                            OrderCreatedMessage message = new OrderCreatedMessage(savedOrder.uid(), savedOrder.status());
-//                            streamBridge.send("orderCreated-out-0", message);
-//            });
-
+            // 4. OrderItem들을 저장하고, 최종적으로 저장된 Order를 반환
+            return orderItemRepository.saveAll(orderItems)
+                    .thenReturn(savedOrder);
+        });
     }
 
     public Mono<Order> cancelOrder(Integer uid) {
