@@ -7,6 +7,7 @@ $(document).ready(() => {
         fetchMenuFromDB(menuUid);
     }
 
+
     //총 금액 실시간으로 변동
     $(document).on('input change', 'input[name$=".amount"], .menu-check', updateTotalPrice);
     updateTotalPrice(); // 초기 로딩 시 계산

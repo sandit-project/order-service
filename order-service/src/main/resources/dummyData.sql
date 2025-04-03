@@ -70,3 +70,25 @@ VALUES (
     'burger.png',                                                  -- 이미지 파일명
     1                                                              -- version
     );
+
+INSERT INTO user (
+    user_id, password, user_name, email, emailyn, phone, phoneyn,
+    main_address, sub_address_1, sub_address_2,
+    point, status, created_date, version
+) VALUES (
+             'test',
+             'test',
+             'test',
+             'dummy@example.com',
+             'Y',
+             '010-1234-5678',
+             'Y',
+             '서울시 강남구 테헤란로 123',
+             '위워크 빌딩 3층',
+             '개발자 자리 옆',
+             100,
+             'active',
+             CURRENT_TIMESTAMP,
+             1
+         );
+

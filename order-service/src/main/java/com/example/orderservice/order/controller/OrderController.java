@@ -1,15 +1,15 @@
 package com.example.orderservice.order.controller;
 
-import com.example.orderservice.order.domain.CartItem;
-import com.example.orderservice.order.domain.Order;
-import com.example.orderservice.order.domain.OrderRequestDTO;
-import com.example.orderservice.order.domain.OrderResponseDTO;
+import com.example.orderservice.menu.MenuClientAdapter;
+import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
@@ -18,46 +18,67 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    //전체 주문 조회
     @GetMapping
-    public Flux<OrderResponseDTO> getOrders() {
+    public Mono<OrderDetailResponseDTO> getOrders() {
         return orderService.findAllOrders()
-                .map(order -> orderService.toResponse(order));
+                .collectList()
+                .map(this::convertToDetailDTO);
     }
 
-    //개별 주문 조회
     @GetMapping("/{uid}")
-    public Mono<OrderResponseDTO> getOrderByUid(@PathVariable Integer uid) {
+    public Mono<OrderDetailResponseDTO> getOrderByUid(@PathVariable Integer uid) {
         return orderService.getOrderByUid(uid)
-                .map(order -> orderService.toResponse(order));
+                .map(order -> convertToDetailDTO(List.of(order)));
     }
 
-    //회원별 주문 조회
     @GetMapping("/user/{userUid}")
-    public Flux<OrderResponseDTO> findAllByUserUid(Integer userUid) {
+    public Mono<OrderDetailResponseDTO> findAllByUserUid(@PathVariable Integer userUid) {
         return orderService.findAllByUserUid(userUid)
-                .map(order -> orderService.toResponse(order));
+                .collectList()
+                .map(this::convertToDetailDTO);
     }
 
-    //주문 승인
     @PostMapping
-    public Mono<OrderResponseDTO> submitOrder(@Valid @RequestBody OrderRequestDTO orderRequestDTO) {
-        for (CartItem item : orderRequestDTO.getItems()) {
-            System.out.println("메뉴: " + item.menuName());
-            System.out.println("수량: " + item.amount());
-            System.out.println("가격: " + item.price());
+    public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
+        return orderService.submitOrder(orderRequestDTO)
+                .collectList()
+                .map(orders -> OrderResponseDTO.builder()
+                        .success(true)
+                        .message("주문이 성공적으로 생성되었습니다. 총 " + orders.size() + "건")
+                        .build())
+                .onErrorResume(error -> Mono.just(
+                        OrderResponseDTO.builder()
+                                .success(false)
+                                .message("주문 실패: " + error.getMessage())
+                                .build()
+                ));
+    }
+
+    private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("No orders found");
         }
 
-        System.out.println("주소: " + orderRequestDTO.getAddress());
-        System.out.println("결제수단: " + orderRequestDTO.getPayment());
+        Order firstOrder = orders.get(0);
 
-        return orderService.submitOrder(orderRequestDTO)
-                .map(order -> orderService.toResponse(order));
+        List<CartItem> items = orders.stream()
+                .map(order -> new CartItem(
+                        order.menuName(),
+                        order.amount(),
+                        order.price(),
+                        order.calorie()
+                ))
+                .toList();
+
+        return OrderDetailResponseDTO.builder()
+                .uid(firstOrder.uid())
+                .userUid(firstOrder.userUid())
+                .items(items)
+                .payment(firstOrder.payment())
+                .status(firstOrder.status().name())
+                .createdDate(firstOrder.createdDate())
+                .build();
     }
 
-//    //주문 취소
-//    @PatchMapping("/{uid}/cancel")
-//    public Mono<Order> cancelOrder(@PathVariable Integer uid) {
-//        return orderService.cancelOrder(uid);
-//    }
 }
+

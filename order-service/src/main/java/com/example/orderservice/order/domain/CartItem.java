@@ -3,9 +3,7 @@ package com.example.orderservice.order.domain;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Builder;
 
-@Builder
 //메뉴 1개의 정보
 public record CartItem (
         @NotBlank(message = "menu must be defined")
