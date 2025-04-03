@@ -5,7 +5,7 @@ plugins {
     id 'jacoco'
 }
 jacoco {
-    toolVersion = "0.8.8"
+    toolVersion = "0.8.10"
     reportsDirectory = layout.buildDirectory.dir('customJacocoReportDir')
 }
 test {
@@ -83,6 +83,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.7.0'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

@@ -1,12 +1,10 @@
 package com.example.orderservice.order.controller;
 
-import com.example.orderservice.menu.MenuClientAdapter;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -22,7 +20,8 @@ public class OrderController {
     public Mono<OrderDetailResponseDTO> getOrders() {
         return orderService.findAllOrders()
                 .collectList()
-                .map(this::convertToDetailDTO);
+                .map(this::convertToDetailDTO)
+                .switchIfEmpty(Mono.empty());
     }
 
     @GetMapping("/{uid}")
@@ -55,7 +54,7 @@ public class OrderController {
     }
 
     private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {
-        if (orders.isEmpty()) {
+        if (orders == null || orders.isEmpty()) {
             throw new IllegalArgumentException("No orders found");
         }
 
