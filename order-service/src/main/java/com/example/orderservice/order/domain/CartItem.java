@@ -3,7 +3,9 @@ package com.example.orderservice.order.domain;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 
+@Builder
 //메뉴 1개의 정보
 public record CartItem (
         @NotBlank(message = "menu must be defined")
@@ -14,7 +16,7 @@ public record CartItem (
         @NotNull(message = "price must be defined")
         @Min(value = 1, message = "Price at least 1")
         int price,
-        @NotBlank(message = "calorie must be defined")
+        @NotNull(message = "calorie must be defined")
         @Min(value = 1, message = "Calorie at least 1")
         Double calorie
 ){

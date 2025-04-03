@@ -42,13 +42,18 @@ public class MenuClientAdapter {
 
     //메뉴 이름 검증 로직
     public Mono<Boolean> validateMenuName(String menuName) {
+        String normalizedInput = menuName.trim().toLowerCase();
+
         return getAllMenus()
-                .filter(menu -> menu.menuName().equalsIgnoreCase(menuName))
+                .map(menu -> menu.menuName().trim().toLowerCase())
+                .doOnNext(n -> log.info("메뉴 이름: {}", n))
+                .filter(normalizedMenu  -> normalizedMenu.equals(normalizedInput))
                 .hasElements();
     }
 
     public Flux<Menu> getAllMenus() {
         return Mono.fromCallable(() -> menuClient.getMenus())
+                .doOnNext(menuList -> log.info("DB 메뉴: {}", menuList))
                 .subscribeOn(Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(10))
                 .retryWhen(

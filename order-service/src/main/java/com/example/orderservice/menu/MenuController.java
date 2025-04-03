@@ -13,8 +13,8 @@ public class MenuController {
     private final MenuService menuService;
 
     @GetMapping
-    public Flux<Menu> getMenus() {
-        return menuService.getMenus();
+    public Flux<Menu> getAllMenus() {
+        return menuService.getAllMenus();
     }
 
     @GetMapping("/{uid}")
