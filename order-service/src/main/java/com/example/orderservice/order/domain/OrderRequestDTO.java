@@ -3,13 +3,16 @@ package com.example.orderservice.order.domain;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
 
 @Getter
+@Builder
 //전체 주문 정보
 public class OrderRequestDTO {
+
         private Integer userUid;
         private Integer socialUid;
         //주문할 상품들
@@ -18,8 +21,6 @@ public class OrderRequestDTO {
         private List<CartItem> items;
         @NotBlank(message = "payment must be defined")
         private String payment;
-        @NotBlank(message = "address must be defined")
-        private String address;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
 }

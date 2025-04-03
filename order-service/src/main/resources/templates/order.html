@@ -31,7 +31,7 @@
 
     <!-- 단일 주문 여부 체크용 -->
     <input type="hidden" id="menuUid" th:value="${menuList.size() == 1} ? ${menuList[0].uid} : ''" />
-
+    <input type="hidden" id="userUid" value="1" />
     <label>주문자 <input type="text" name="name" /></label><br>
     <label>주소 <input type="text" name="address" /></label><br>
     <label>전화번호 <input type="text" name="tel" /></label><br>
