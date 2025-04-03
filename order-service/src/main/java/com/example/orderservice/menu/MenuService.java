@@ -19,7 +19,7 @@ public class MenuService {
                 .doOnNext(getMenuByUid -> log.info("getMenuByUid {}", uid));
     }
 
-    public Flux<Menu> getMenus() {
+    public Flux<Menu> getAllMenus() {
         return menuClientAdapter.getAllMenus()
                 .doOnNext(getMenus -> log.info("getMenus {}", getMenus));
     }

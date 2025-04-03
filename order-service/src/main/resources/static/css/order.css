@@ -1,47 +1,64 @@
-/* order.css */
-
 body {
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: 'Pretendard', sans-serif;
+    margin: 30px;
     background-color: #f9f9f9;
-    margin: 0;
-    padding: 30px;
-    text-align: center;
+    color: #333;
 }
 
 h1 {
-    color: #333;
-    margin-bottom: 30px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #222;
 }
 
-#menuInfo {
-    display: inline-block;
-    background-color: white;
-    padding: 20px 30px;
+[data-menu-item] {
+    background-color: #fff;
     border: 1px solid #ddd;
-    border-radius: 12px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
-    margin-bottom: 30px;
-    text-align: left;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-#menuInfo div {
-    margin: 10px 0;
-    font-size: 18px;
-    color: #444;
+input[type="number"] {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+}
+
+input[type="text"], select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
 #payButton {
-    padding: 12px 24px;
-    font-size: 18px;
     background-color: #4CAF50;
     color: white;
+    padding: 10px 25px;
+    font-size: 16px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    display: block;
+    margin: 20px auto;
 }
 
 #payButton:hover {
     background-color: #45a049;
 }
 
+#totalPrice {
+    font-weight: bold;
+    font-size: 18px;
+    color: #e53935;
+}

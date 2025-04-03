@@ -21,32 +21,32 @@ public class CustomOrderController {
 
     @PostMapping
     public Mono<Order> submitCustomOrder(@Valid @RequestBody CustomOrderRequest customOrderRequest) {
-        OrderRequest orderRequest = customOrderRequest.orderRequest();
+        OrderRequestDTO orderRequestDTO = customOrderRequest.getOrderRequestDTO();
 
-        return orderService.submitOrder(orderRequest)
+        return orderService.submitOrder(orderRequestDTO)
                 .flatMap(savedOrder -> {
                     CustomOrder customOrder = CustomOrder.builder()
                             .uid(savedOrder.uid()) // Order의 uid와 연동
-                            .bread(customOrderRequest.bread())
-                            .material1(customOrderRequest.material1())
-                            .material2(customOrderRequest.material2())
-                            .material3(customOrderRequest.material3())
-                            .cheese(customOrderRequest.cheese())
-                            .vegetable1(customOrderRequest.vegetable1())
-                            .vegetable2(customOrderRequest.vegetable2())
-                            .vegetable3(customOrderRequest.vegetable3())
-                            .vegetable4(customOrderRequest.vegetable4())
-                            .vegetable5(customOrderRequest.vegetable5())
-                            .vegetable6(customOrderRequest.vegetable6())
-                            .vegetable7(customOrderRequest.vegetable7())
-                            .vegetable8(customOrderRequest.vegetable8())
-                            .sauce1(customOrderRequest.sauce1())
-                            .sauce2(customOrderRequest.sauce2())
-                            .sauce3(customOrderRequest.sauce3())
+                            .bread(customOrderRequest.getBread())
+                            .material1(customOrderRequest.getMaterial1())
+                            .material2(customOrderRequest.getMaterial2())
+                            .material3(customOrderRequest.getMaterial3())
+                            .cheese(customOrderRequest.getCheese())
+                            .vegetable1(customOrderRequest.getVegetable1())
+                            .vegetable2(customOrderRequest.getVegetable2())
+                            .vegetable3(customOrderRequest.getVegetable3())
+                            .vegetable4(customOrderRequest.getVegetable4())
+                            .vegetable5(customOrderRequest.getVegetable5())
+                            .vegetable6(customOrderRequest.getVegetable6())
+                            .vegetable7(customOrderRequest.getVegetable7())
+                            .vegetable8(customOrderRequest.getVegetable8())
+                            .sauce1(customOrderRequest.getSauce1())
+                            .sauce2(customOrderRequest.getSauce2())
+                            .sauce3(customOrderRequest.getSauce3())
                             .build();
 
                     // 커스텀 주문 DB 저장
-                    return customOrderService.submitCustomOrder(customOrderRequest, savedOrder.uid(), orderRequest.items())
+                    return customOrderService.submitCustomOrder(customOrderRequest, savedOrder.uid(), orderRequestDTO.getItems())
                             // 커스텀 주문 저장이 끝나면 최종적으로 savedOrder 반환
                             .thenReturn(savedOrder);
                 });
