@@ -6,6 +6,8 @@ import com.example.orderservice.order.domain.Order;
 import com.example.orderservice.order.domain.OrderRepository;
 import com.example.orderservice.order.domain.OrderRequestDTO;
 import com.example.orderservice.order.domain.OrderStatus;
+import com.example.orderservice.payment.PreparePaymentRequestDTO;
+import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -70,11 +72,42 @@ public class OrderService {
                                     .payment(orderRequestDTO.getPayment())
                                     .status(orderStatus)
                                     .build();
-
                             System.out.println(order.toString());
 
                             return orderRepository.save(order);
                         }));
+    }
+
+    public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
+        log.info("Preparing payment and saving: merchantUid={}, totalPrice={}", request.getMerchantUid(), request.getTotalPrice());
+
+        if (request.getTotalPrice() == null || request.getTotalPrice() <= 0) {
+            return Mono.error(new IllegalArgumentException("결제 금액이 유효하지 않습니다."));
+        }
+
+////        // "준비 단계" 상태의 Order를 저장
+////        Order order = Order.builder()
+////                .merchantUid(request.getMerchantUid())
+////                .payment(null) // 아직 결제 수단 미정
+////                .status(OrderStatus.PAYMENT_PENDING) // 준비중
+////                .price(request.getTotalPrice())
+////                .build();
+//
+//        return orderRepository.save(order)
+//                .map(savedOrder -> PreparePaymentResponseDTO.builder()
+//                        .merchantUid(savedOrder.merchantUid())
+//                        .requestedAmount(savedOrder.price())
+//                        .message("사전 검증 및 저장 완료")
+//                        .build());
+//    }
+
+        return Mono.just(
+                PreparePaymentResponseDTO.builder()
+                        .merchantUid(request.getMerchantUid())
+                        .requestedAmount(request.getTotalPrice())
+                        .message("사전 검증 완료")
+                        .build()
+        );
     }
 
 

@@ -1,6 +1,5 @@
-package com.example.orderservice.order.user;
+package com.example.orderservice.user;
 
-import lombok.Getter;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
