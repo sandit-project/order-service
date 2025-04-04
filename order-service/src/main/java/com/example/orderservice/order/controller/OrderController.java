@@ -2,6 +2,8 @@ package com.example.orderservice.order.controller;
 
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.service.OrderService;
+import com.example.orderservice.payment.PreparePaymentRequestDTO;
+import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +39,19 @@ public class OrderController {
                 .map(this::convertToDetailDTO);
     }
 
+    //결제 준비
+    @PostMapping("/prepare")
+    public Mono<PreparePaymentResponseDTO> preparePayment(@RequestBody PreparePaymentRequestDTO request) {
+        return orderService.preparePayment(request);
+    }
+
     @PostMapping
     public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
         return orderService.submitOrder(orderRequestDTO)
                 .collectList()
                 .map(orders -> OrderResponseDTO.builder()
                         .success(true)
-                        .message("주문이 성공적으로 생성되었습니다. 총 " + orders.size() + "건")
+                        .message("주문이 성공적으로 생성되었습니다. 주문 메뉴" + orders.size() + "건")
                         .build())
                 .onErrorResume(error -> Mono.just(
                         OrderResponseDTO.builder()

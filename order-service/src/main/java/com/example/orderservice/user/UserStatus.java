@@ -1,4 +1,4 @@
-package com.example.orderservice.order.user;
+package com.example.orderservice.user;
 
 public enum UserStatus {
     ACTIVE,

@@ -1,4 +1,4 @@
-package com.example.orderservice.order.user;
+package com.example.orderservice.user;
 
 import lombok.Builder;
 import lombok.Getter;
