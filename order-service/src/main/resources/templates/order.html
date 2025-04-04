@@ -28,16 +28,12 @@
         <hr/>
     </div>
     </div>
-
-    <!-- 단일 주문 여부 체크용 -->
-    <input type="hidden" id="menuUid" th:value="${menuList.size() == 1} ? ${menuList[0].uid} : ''" />
-    <input type="hidden" id="userUid" value="1" />
-    <label>주문자 <input type="text" name="name" /></label><br>
-    <label>주소 <input type="text" name="address" /></label><br>
-    <label>전화번호 <input type="text" name="tel" /></label><br>
+    <label>주문자 <input type="text" id="name" /></label><br>
+    <label>주소 <input type="text" id="address" /></label><br>
+    <label>전화번호 <input type="text" id="tel" /></label><br>
     <label>결제수단
-        <select name="paymentMethod">
-            <option>카드</option>
+        <select id="payMethod">
+            <option value="card">카드</option>
         </select>
     </label><br>
     <p>총 결제 금액: <span id="totalPrice">0원</span></p>

@@ -15,6 +15,7 @@ public record Order (
         Integer uid,
         Integer userUid,
         Integer socialUid,
+        String merchantUid,
         String menuName,
         int amount,
         Integer price,
