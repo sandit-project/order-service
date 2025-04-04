@@ -23,7 +23,6 @@ public class CustomOrderService {
     private final MenuClientAdapter menuClientAdapter;
     private final CustomOrderRepository customOrderRepository;
 
-    @PostMapping
     public Mono<CustomOrder> submitCustomOrder(@RequestBody CustomOrderRequest customOrderRequest,
                                                Integer uid, List<CartItem> items) {
         return menuClientAdapter.getMenuByUid(uid)
