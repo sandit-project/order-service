@@ -23,4 +23,5 @@ public class OrderRequestDTO {
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
+        private boolean paymentSuccess;
 }

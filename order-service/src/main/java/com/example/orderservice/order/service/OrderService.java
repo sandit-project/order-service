@@ -41,6 +41,17 @@ public class OrderService {
     }
 
     public Flux<Order> submitOrder(OrderRequestDTO orderRequestDTO) {
+
+        System.out.println("== submitOrder called ==");
+        System.out.println("items: " + orderRequestDTO.getItems());
+        System.out.println("paymentSuccess: " + orderRequestDTO.isPaymentSuccess());
+
+        boolean paymentSuccess = orderRequestDTO.isPaymentSuccess();
+
+        OrderStatus orderStatus = paymentSuccess
+                ? OrderStatus.PAYMENT_COMPLETED
+                : OrderStatus.PAYMENT_FAILED;
+
         return Flux.fromIterable(orderRequestDTO.getItems())
                 .flatMap(item -> menuClientAdapter.validateMenuName(item.menuName())
                         .flatMap(isValid -> {
@@ -51,13 +62,16 @@ public class OrderService {
 
                             Order order = Order.builder()
                                     .userUid(orderRequestDTO.getUserUid()) // 그냥 DTO에서 받은 숫자 쓰기
+                                    .merchantUid(orderRequestDTO.getMerchantUid())
                                     .menuName(item.menuName())
                                     .amount(item.amount())
                                     .price(item.price())
                                     .calorie(item.calorie())
                                     .payment(orderRequestDTO.getPayment())
-                                    .status(OrderStatus.PAYMENT_PENDING)
+                                    .status(orderStatus)
                                     .build();
+
+                            System.out.println(order.toString());
 
                             return orderRepository.save(order);
                         }));

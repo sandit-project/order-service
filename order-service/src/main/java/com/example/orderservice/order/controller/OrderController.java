@@ -53,6 +53,7 @@ public class OrderController {
                 ));
     }
 
+    //주문 상세 정보
     private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {
         if (orders == null || orders.isEmpty()) {
             throw new IllegalArgumentException("No orders found");
