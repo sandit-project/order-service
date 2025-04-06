@@ -51,8 +51,9 @@ public class OrderController {
                 .collectList()
                 .map(orders -> OrderResponseDTO.builder()
                         .success(true)
-                        .message("주문이 성공적으로 생성되었습니다. 주문 메뉴" + orders.size() + "건")
-                        .build())
+                        .message("주문이 성공적으로 생성되었습니다. 총 " + orders.size() + "건")
+                        .build()
+                )
                 .onErrorResume(error -> Mono.just(
                         OrderResponseDTO.builder()
                                 .success(false)
@@ -71,6 +72,7 @@ public class OrderController {
 
         List<CartItem> items = orders.stream()
                 .map(order -> new CartItem(
+                        order.uid(),
                         order.menuName(),
                         order.amount(),
                         order.price(),
