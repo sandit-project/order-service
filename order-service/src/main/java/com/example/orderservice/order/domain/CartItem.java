@@ -4,8 +4,9 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-//메뉴 1개의 정보
+//메뉴 1개의 정보 (프론트랑 통신하는 DTO)
 public record CartItem (
+        Integer cartUid,
         @NotBlank(message = "menu must be defined")
         String menuName,
         @NotNull(message = "amount must be defined")
