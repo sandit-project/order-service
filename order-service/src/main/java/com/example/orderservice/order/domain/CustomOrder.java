@@ -2,6 +2,7 @@ package com.example.orderservice.order.domain;
 
 import lombok.Builder;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Builder
@@ -24,7 +25,9 @@ public record CustomOrder(
         Integer vegetable8,
         Integer sauce1,
         Integer sauce2,
-        Integer sauce3
+        Integer sauce3,
+        @Version
+        int version
 
         ) {
 }
