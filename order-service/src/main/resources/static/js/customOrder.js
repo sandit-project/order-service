@@ -25,7 +25,8 @@ function getCustomOrderData() {
         bread: parseInt($('#bread').val()),
         material1: parseInt($('#material1').val()),
         cheese: parseInt($('#cheese').val()),
-        sauce1: parseInt($('#sauce1').val())
+        sauce1: parseInt($('#sauce1').val()),
+        vegetable1: 1, //하드코딩
     };
 }
 
@@ -81,7 +82,19 @@ function requestPayment(merchantUid, totalPrice, customOrder) {
 function sendCustomOrder(customOrder, merchantUid) {
     const requestData = {
         ...customOrder,
-        merchantUid: merchantUid
+        orderRequestDTO: { //주문정보
+            userUid: 1, // 테스트용 user uid
+            items: [{
+                cartUid: 1, // 테스트용
+                menuName: '커스텀 샌드위치',
+                amount: 1,
+                price: 1,
+                calorie: 450
+            }],
+            payment: 'card',
+            merchantUid: merchantUid,
+            paymentSuccess: true
+        }
     };
 
     $.ajax({

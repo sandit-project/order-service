@@ -49,18 +49,33 @@ public class OrderController {
     public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
         return orderService.submitOrder(orderRequestDTO)
                 .collectList()
-                .map(orders -> OrderResponseDTO.builder()
-                        .success(true)
-                        .message("주문이 성공적으로 생성되었습니다. 총 " + orders.size() + "건")
-                        .build()
-                )
-                .onErrorResume(error -> Mono.just(
-                        OrderResponseDTO.builder()
+                .map(orders -> {
+                    if (orders.isEmpty()) {
+                        // 주문이 저장되지 않은 경우 => 실패 응답
+                        return OrderResponseDTO.builder()
                                 .success(false)
-                                .message("주문 실패: " + error.getMessage())
-                                .build()
-                ));
+                                .message("주문 저장 실패")
+                                .build();
+                    } else {
+                        // 주문이 저장된 경우 => 성공 응답
+                        return OrderResponseDTO.builder()
+                                .success(true)
+                                .message("주문이 성공적으로 저장되었습니다. 총 " + orders.size() + "건")
+                                .build();
+                    }
+                })
+                .onErrorResume(error -> {
+                    // 진짜 시스템 에러 (DB 터지거나 서버 터진 경우)
+                    return Mono.just(
+                            OrderResponseDTO.builder()
+                                    .success(false)
+                                    .message("서버 에러: " + error.getMessage())
+                                    .build()
+                    );
+                });
     }
+
+
 
     //주문 상세 정보
     private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {

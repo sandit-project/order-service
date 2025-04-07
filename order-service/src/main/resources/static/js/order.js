@@ -1,34 +1,93 @@
+// 장바구니 항목 가져오기
+function getCartItems() {
+    return $.ajax({
+        url: '/carts',
+        method: 'GET',
+        contentType: 'application/json'
+    });
+}
+
+// 선택된 장바구니 항목 가져오기
+function getSelectedCartItems() {
+    const selectedItems = [];
+    $('[data-cart-item]').each(function () {
+        const $checkbox = $(this).find('.cart-check');
+        if ($checkbox.is(':checked')) {
+            const cartUid = $(this).data('cart-uid');
+            const menuName = $(this).find('.item-name').text();
+            const price = parseInt($(this).find('.item-price').text()) || 0;
+            const amount = parseInt($(this).find('.item-amount').text()) || 0;
+            const calorie = parseInt($(this).find('.item-calorie').text()) || 0;
+            selectedItems.push({ cartUid, menuName, price, calorie });
+        }
+    });
+    return selectedItems;
+}
+
+
 let merchantUid = null;
 
 $(document).ready(() => {
     const IMP = window.IMP;
     IMP.init('imp54787882');
 
+    renderCartItems();
     updateTotalPrice(); // 페이지 로딩 시 금액 계산
 
     $('#payButton').click(async () => {
         const cartUids = getSelectedCartUids();
         const buyer = getBuyerInfo();
         const totalPrice = calculateTotal();
+        const selectedItems = getSelectedCartItems();
 
         if (cartUids.length === 0) {
             alert('주문할 메뉴를 선택해주세요.');
             return;
         }
 
-        merchantUid = generateMerchantUid(); // 1. merchant_uid 새로 생성
+        let menuName = '';
+        if (selectedItems.length === 1) {
+            menuName = selectedItems[0].menuName;
+        } else if (selectedItems.length > 1) {
+            menuName = `${selectedItems[0].menuName} 외 ${selectedItems.length - 1}건`;
+        }
+
+        merchantUid = generateMerchantUid();
 
         try {
-            await preparePayment(merchantUid, totalPrice); // 2. 사전 검증
+            await preparePayment(merchantUid, menuName, totalPrice);
             console.log('사전 검증 성공');
 
-            requestPayment(cartUids, buyer, totalPrice); // 3. 결제창 띄우기
+            requestPayment(cartUids, buyer, totalPrice, merchantUid);
         } catch (err) {
             console.error('사전 검증 실패', err);
             alert('사전 검증 실패');
         }
     });
 });
+
+// 장바구니 렌더링
+async function renderCartItems() {
+    const $container = $('#cartContainer');
+    $container.empty(); // 이전 내용 비우기
+
+    try {
+        const items = await getCartItems(); // DB에서 가져옴
+        items.forEach(item => {
+            const itemHtml = `
+        <div class="cart-item" data-cart-item data-cart-uid="${item.uid}">
+            <input type="checkbox" class="cart-check" checked>
+            <span class="item-name">${item.menuName}</span>
+            <span class="item-price">${item.price}</span>원
+            <span class="item-calorie">${item.calorie} kcal</span>
+        </div>
+      `;
+            $container.append(itemHtml);
+        });
+    } catch (error) {
+        console.error('장바구니 불러오기 실패', error);
+    }
+}
 
 // 선택한 카트 항목들 cartUid 가져오기
 function getSelectedCartUids() {
@@ -56,73 +115,102 @@ function getBuyerInfo() {
 }
 
 // 사전 검증 API 호출
-function preparePayment(merchantUid, totalPrice) {
+function preparePayment(merchantUid, menuName, totalPrice) {
     return $.ajax({
         url: '/orders/prepare',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
             merchantUid: merchantUid,
-            totalPrice: totalPrice
+            menuName: menuName,
+            totalPrice: totalPrice,
         })
     });
 }
 
 // 실제 결제 요청
-function requestPayment(cartUids, buyer, totalPrice) {
+function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
     const IMP = window.IMP;
+    const selectedItems = getSelectedCartItems();
+    let menuName = '';
+
+    if (selectedItems.length === 1) {
+        menuName = selectedItems[0].menuName;
+    } else if (selectedItems.length > 1) {
+        menuName = `${selectedItems[0].menuName} 외 ${selectedItems.length - 1}건`;
+    }
+
+    console.log('선택된 아이템:', selectedItems);
+
     IMP.request_pay({
         pg: 'html5_inicis',
         pay_method: buyer.payMethod,
         merchant_uid: merchantUid,
-        name: '선택한 메뉴 결제',
+        name: menuName,
         amount: totalPrice,
         buyer_name: buyer.name,
         buyer_phone: buyer.phone,
         buyer_email: buyer.email,
         buyer_addr: buyer.address
-    }, function (rsp) {
-        if (rsp.success) {
-            sendOrderRequest(cartUids, buyer, rsp, true);
+    }, function (response) {
+        if (response.success) {
+            sendOrderRequest(cartUids, buyer, response, true, totalPrice)
+                .then(() => {
+                    alert('결제 및 주문 저장 성공');
+                })
+                .catch(() => {
+                    alert('주문 저장 실패');
+                });
         } else {
-            sendOrderRequest(cartUids, buyer, rsp, false);
-            alert('결제 실패: ' + rsp.error_msg);
+            sendOrderRequest(cartUids, buyer, response, false, totalPrice)
+                .then(() => {
+                    alert('결제는 실패했지만 주문 저장 성공');
+                })
+                .catch(() => {
+                    alert('결제 실패 + 주문 저장 실패');
+                });
         }
     });
 }
 
 // 결제 후 서버에 주문 전송
-function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess) {
-    const orderData = {
-        userUid: 1, // 하드코딩
-        cartUids: cartUids,
-        payment: buyer.payMethod,
-        merchantUid: paymentResponse.merchant_uid,
-        paymentSuccess: paymentSuccess,
-        buyerName: buyer.name,
-        buyerPhone: buyer.phone,
-        buyerEmail: buyer.email,
-        buyerAddr: buyer.address
-    };
+function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, totalPrice) {
+    return new Promise((resolve, reject) => {
+        const selectedItems = getSelectedCartItems();
 
-    console.log('보낼 주문 데이터:', orderData);
+        const items = selectedItems.map(item => ({
+            cartUid: item.cartUid,  // 장바구니 ID
+            menuName: item.menuName,
+            price: item.price,
+            calorie: item.calorie
+        }));
 
-    $.ajax({
-        url: '/orders',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(orderData),
-        success: (response) => {
-            console.log('주문 성공:', response);
-            alert(paymentSuccess ? '주문 및 결제 성공' : '주문만 저장됨');
-            if (paymentSuccess) {
-                clearCart();
+
+        $.ajax({
+            type: 'POST',
+            url: '/orders',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                userUid: 1,
+                items: items,
+                payment: buyer.payMethod,
+                merchantUid: paymentResponse.merchant_uid,
+                paymentSuccess: paymentSuccess,
+                buyerName: buyer.name,
+                buyerPhone: buyer.phone,
+                buyerEmail: buyer.email,
+                buyerAddr: buyer.address,
+                price: totalPrice
+            }),
+            success: function(response) {
+                console.log('주문 저장 성공', response);
+                resolve(response);
+            },
+            error: function(xhr, status, error) {
+                console.error('주문 저장 실패', xhr.responseText);
+                reject(error);
             }
-        },
-        error: (err) => {
-            alert('주문 저장 실패');
-            console.error(err.responseText);
-        }
+        });
     });
 }
 

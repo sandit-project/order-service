@@ -8,7 +8,6 @@ import com.example.orderservice.order.domain.OrderRequestDTO;
 import com.example.orderservice.order.domain.OrderStatus;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +23,6 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final CartService cartService;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Flux<Order> findAllOrders() {
         return orderRepository.findAllOrders();
@@ -67,9 +64,12 @@ public class OrderService {
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
         Order order = Order.builder()
                 .merchantUid(request.getMerchantUid())
-                .payment(null)
-                .status(OrderStatus.PAYMENT_PENDING)
+                .menuName(request.getMenuName())
+                .amount(1)
+                .payment("card")
+                .status(OrderStatus.PAYMENT_CANCELLED)
                 .price(request.getTotalPrice())
+                .calorie(0.0)
                 .build();
 
         return orderRepository.save(order)

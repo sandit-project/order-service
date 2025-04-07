@@ -7,5 +7,6 @@ import lombok.Getter;
 @Builder
 public class PreparePaymentRequestDTO {
     private String merchantUid;
+    private String menuName;
     private Integer totalPrice;
 }
