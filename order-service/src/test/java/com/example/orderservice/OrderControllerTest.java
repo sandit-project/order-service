@@ -20,9 +20,6 @@ public class OrderControllerTest {
     @MockBean
     private OrderService orderService;
 
-    @MockBean
-    private MenuClientAdapter menuClientAdapter;
-
     @Test
     void getOrders_returnsOk() {
         // given

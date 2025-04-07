@@ -5,7 +5,8 @@
     <title>커스텀 주문</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
-    <script src="/js/custom-order.js"></script>
+    <link rel="stylesheet" th:href="@{/css/customOrder.css}">
+    <script th:src="@{/js/customOrder.js}"></script>
 </head>
 <body>
 
@@ -15,32 +16,40 @@
     <div>
         <label>빵 종류:</label>
         <select id="bread">
-            <option value="화이트">화이트</option>
-            <option value="허니오트">허니오트</option>
+            <option value="1">화이트</option>
         </select>
     </div>
 
     <div>
         <label>메인 재료:</label>
-        <select id="material1">
-            <option value="닭가슴살">닭가슴살</option>
-            <option value="로스트비프">로스트비프</option>
+        <select id="material">
+            <option value="1">닭고기</option>
+            <option value="2">소고기</option>
+            <option value="3">돼지고기</option>
+        </select>
+    </div>
+
+    <div>
+        <label>채소:</label>
+        <select id="vegetable">
+            <option value="1">상추</option>
+            <option value="2">토마토</option>
+            <option value="3">양파</option>
         </select>
     </div>
 
     <div>
         <label>치즈:</label>
         <select id="cheese">
-            <option value="아메리칸치즈">아메리칸치즈</option>
-            <option value="슈레드치즈">슈레드치즈</option>
+            <option value="1">모짜렐라</option>
         </select>
     </div>
 
     <div>
         <label>소스:</label>
         <select id="sauce1">
-            <option value="허니머스타드">허니머스타드</option>
-            <option value="스위트어니언">스위트어니언</option>
+            <option value="1">마요네즈</option>
+            <option value="2">케첩</option>
         </select>
     </div>
 

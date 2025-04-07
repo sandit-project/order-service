@@ -25,4 +25,8 @@ public class CartService {
     public Flux<Cart> findCartByUserUid(Integer userUid) {
         return cartRepository.findByUserUid(userUid);
     }
+
+    public Flux<Cart> getCartItems() {
+        return cartRepository.findAll();
+    }
 }

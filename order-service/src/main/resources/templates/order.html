@@ -1,43 +1,51 @@
 <!DOCTYPE html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>카트 기반 주문</title>
+    <title>더미 장바구니 주문 페이지</title>
     <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
     <script src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
     <link rel="stylesheet" th:href="@{/css/order.css}">
     <script th:src="@{/js/order.js}"></script>
 </head>
 <body>
-<h1>카트 기반 주문 페이지</h1>
 
-<div th:if="${cartList != null}">
-    <div th:each="cart, iterStat : ${cartList}" data-cart-item>
-        <input type="checkbox" class="cart-check" checked />
-        <div class="cart-info">
-            <strong th:text="${cart.menuName}">메뉴명</strong> -
-            <span th:text="${cart.price}">가격</span>원
-        </div>
-        <input type="hidden" name="cartItems[${iterStat.index}].menuName" th:value="${cart.menuName}" />
-        <input type="hidden" name="cartItems[${iterStat.index}].price" th:value="${cart.price}" />
-        <input type="hidden" name="cartItems[${iterStat.index}].calorie" th:value="${cart.calorie}" />
-        <label>수량: <input type="number" name="cartItems[${iterStat.index}].amount" th:value="${cart.amount}" min="1" /></label>
-    </div>
-    <hr/>
+<h1>더미 장바구니 주문</h1>
+
+<div id="cartContainer">
+    <!-- 여기에 더미 장바구니 아이템들이 JS로 렌더링됨 -->
 </div>
 
-<label>주문자 <input type="text" id="name" /></label><br>
-<label>주소 <input type="text" id="address" /></label><br>
-<label>이메일 <input type="text" id="email" /></label><br>
-<label>전화번호 <input type="text" id="phone" /></label><br>
-<label>결제수단
-    <select id="payMethod">
-        <option value="card">카드</option>
-    </select>
-</label><br>
+<table id="cartTable">
+    <thead>
+    <tr>
+        <th>선택</th>
+        <th>상품명</th>
+        <th>가격</th>
+    </tr>
+    </thead>
+    <tbody id="cartItemsContainer">
+    </tbody>
+</table>
 
-<p>총 결제 금액: <span id="totalPrice">0원</span></p>
-<button type="button" id="payButton">결제하기</button>
+<hr/>
+
+<div class="buyer-info">
+    <label>주문자 이름: <input type="text" id="name"></label><br/>
+    <label>주소: <input type="text" id="address"></label><br/>
+    <label>이메일: <input type="text" id="email"></label><br/>
+    <label>전화번호: <input type="text" id="phone"></label><br/>
+    <label>결제수단:
+        <select id="payMethod">
+            <option value="card">카드</option>
+        </select>
+    </label>
+</div>
+
+<div class="summary">
+    <p>총 결제 금액: <span id="totalPrice">0 원</span></p>
+    <button type="button" id="payButton">결제하기</button>
+</div>
 
 </body>
 </html>
