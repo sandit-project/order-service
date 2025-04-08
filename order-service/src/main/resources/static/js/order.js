@@ -154,21 +154,11 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
         buyer_addr: buyer.address
     }, function (response) {
         if (response.success) {
-            sendOrderRequest(cartUids, buyer, response, true, totalPrice)
-                .then(() => {
-                    alert('결제 및 주문 저장 성공');
-                })
-                .catch(() => {
-                    alert('주문 저장 실패');
-                });
+            // 결제 성공한 경우에만 주문 저장 API 호출
+            sendOrderRequest();
         } else {
-            sendOrderRequest(cartUids, buyer, response, false, totalPrice)
-                .then(() => {
-                    alert('결제는 실패했지만 주문 저장 성공');
-                })
-                .catch(() => {
-                    alert('결제 실패 + 주문 저장 실패');
-                });
+            // 결제 실패했으면 저장 요청 보내지 말고 사용자에게 알림
+            alert('결제 실패했습니다: ' + response.error_msg);
         }
     });
 }
