@@ -24,9 +24,20 @@ function getCustomOrderData() {
     return {
         bread: parseInt($('#bread').val()),
         material1: parseInt($('#material1').val()),
+        material2: parseInt($('#material2').val()),
+        material3: parseInt($('#material3').val()),
         cheese: parseInt($('#cheese').val()),
         sauce1: parseInt($('#sauce1').val()),
-        vegetable1: 1, //하드코딩
+        sauce2: parseInt($('#sauce2').val()),
+        sauce3: parseInt($('#sauce3').val()),
+        vegetable1: parseInt($('#vegetable1').val()),
+        vegetable2: parseInt($('#vegetable2').val()),
+        vegetable3: parseInt($('#vegetable3').val()),
+        vegetable4: parseInt($('#vegetable4').val()),
+        vegetable5: parseInt($('#vegetable5').val()),
+        vegetable6: parseInt($('#vegetable6').val()),
+        vegetable7: parseInt($('#vegetable7').val()),
+        vegetable8: parseInt($('#vegetable8').val())
     };
 }
 
