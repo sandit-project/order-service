@@ -1,9 +1,6 @@
 package com.example.orderservice.order.service;
 
-import com.example.orderservice.order.domain.CustomOrder;
-import com.example.orderservice.order.domain.CustomOrderRepository;
-import com.example.orderservice.order.domain.CustomOrderRequest;
-import com.example.orderservice.order.domain.OrderResponseDTO;
+import com.example.orderservice.order.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -15,9 +12,24 @@ public class CustomOrderService {
     private final CustomOrderRepository customOrderRepository;
     private final OrderService orderService;
 
-    public Mono<OrderResponseDTO> submitCustomOrder(CustomOrderRequest customOrderRequest) {
+    public Mono<CustomOrder> findByUid(Integer uid) {
+        return customOrderRepository.findById(uid);
+    }
+
+
+    public Mono<OrderResponseDTO> submitCustomOrder(CustomOrderRequestDTO customOrderRequestDTO) {
+        customOrderRequestDTO.getOrderRequestDTO()
+                .getItems()
+                .replaceAll(item -> new CartItem(
+                        item.cartUid(),
+                        "커스텀 샌드위치",
+                        item.amount(),
+                        item.price(),
+                        item.calorie()
+                ));
+
         // 1. 먼저 공통 주문 저장
-        return orderService.submitOrder(customOrderRequest.getOrderRequestDTO())
+        return orderService.submitOrder(customOrderRequestDTO.getOrderRequestDTO())
                 .collectList()
                 .flatMap(orders -> {
                     if (orders.isEmpty()) {
@@ -33,22 +45,22 @@ public class CustomOrderService {
                     // 3. 그 uid를 CustomOrder에 세팅
                     CustomOrder customOrder = CustomOrder.builder()
                             .uid(orderUid)
-                            .bread(customOrderRequest.getBread())
-                            .material1(customOrderRequest.getMaterial1())
-                            .material2(customOrderRequest.getMaterial2())
-                            .material3(customOrderRequest.getMaterial3())
-                            .cheese(customOrderRequest.getCheese())
-                            .vegetable1(customOrderRequest.getVegetable1())
-                            .vegetable2(customOrderRequest.getVegetable2())
-                            .vegetable3(customOrderRequest.getVegetable3())
-                            .vegetable4(customOrderRequest.getVegetable4())
-                            .vegetable5(customOrderRequest.getVegetable5())
-                            .vegetable6(customOrderRequest.getVegetable6())
-                            .vegetable7(customOrderRequest.getVegetable7())
-                            .vegetable8(customOrderRequest.getVegetable8())
-                            .sauce1(customOrderRequest.getSauce1())
-                            .sauce2(customOrderRequest.getSauce2())
-                            .sauce3(customOrderRequest.getSauce3())
+                            .bread(customOrderRequestDTO.getBread())
+                            .material1(customOrderRequestDTO.getMaterial1())
+                            .material2(customOrderRequestDTO.getMaterial2())
+                            .material3(customOrderRequestDTO.getMaterial3())
+                            .cheese(customOrderRequestDTO.getCheese())
+                            .vegetable1(customOrderRequestDTO.getVegetable1())
+                            .vegetable2(customOrderRequestDTO.getVegetable2())
+                            .vegetable3(customOrderRequestDTO.getVegetable3())
+                            .vegetable4(customOrderRequestDTO.getVegetable4())
+                            .vegetable5(customOrderRequestDTO.getVegetable5())
+                            .vegetable6(customOrderRequestDTO.getVegetable6())
+                            .vegetable7(customOrderRequestDTO.getVegetable7())
+                            .vegetable8(customOrderRequestDTO.getVegetable8())
+                            .sauce1(customOrderRequestDTO.getSauce1())
+                            .sauce2(customOrderRequestDTO.getSauce2())
+                            .sauce3(customOrderRequestDTO.getSauce3())
                             .build();
 
                     // 4. custom_order 저장
@@ -59,7 +71,4 @@ public class CustomOrderService {
                                     .build());
                 });
     }
-
-
-
 }
