@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class CustomOrderRequest{
+public class CustomOrderRequestDTO {
         @NotNull(message = "orderRequest must be provided")
         private OrderRequestDTO orderRequestDTO;
 

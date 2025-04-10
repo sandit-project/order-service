@@ -22,22 +22,22 @@ $(document).ready(() => {
 // 커스텀 데이터 추출
 function getCustomOrderData() {
     return {
-        bread: parseInt($('#bread').val()),
-        material1: parseInt($('#material1').val()),
-        material2: parseInt($('#material2').val()),
-        material3: parseInt($('#material3').val()),
-        cheese: parseInt($('#cheese').val()),
-        sauce1: parseInt($('#sauce1').val()),
-        sauce2: parseInt($('#sauce2').val()),
-        sauce3: parseInt($('#sauce3').val()),
-        vegetable1: parseInt($('#vegetable1').val()),
-        vegetable2: parseInt($('#vegetable2').val()),
-        vegetable3: parseInt($('#vegetable3').val()),
-        vegetable4: parseInt($('#vegetable4').val()),
-        vegetable5: parseInt($('#vegetable5').val()),
-        vegetable6: parseInt($('#vegetable6').val()),
-        vegetable7: parseInt($('#vegetable7').val()),
-        vegetable8: parseInt($('#vegetable8').val())
+        bread: parseInt($('#bread').val()) || null,
+        material1: parseInt($('#material1').val()) || null,
+        material2: parseInt($('#material2').val()) || null,
+        material3: parseInt($('#material3').val()) || null,
+        cheese: parseInt($('#cheese').val()) || null,
+        sauce1: parseInt($('#sauce1').val()) || null,
+        sauce2: parseInt($('#sauce2').val()) || null,
+        sauce3: parseInt($('#sauce3').val()) || null,
+        vegetable1: parseInt($('#vegetable1').val()) || null,
+        vegetable2: parseInt($('#vegetable2').val()) || null,
+        vegetable3: parseInt($('#vegetable3').val()) || null,
+        vegetable4: parseInt($('#vegetable4').val()) || null,
+        vegetable5: parseInt($('#vegetable5').val()) || null,
+        vegetable6: parseInt($('#vegetable6').val()) || null,
+        vegetable7: parseInt($('#vegetable7').val()) || null,
+        vegetable8: parseInt($('#vegetable8').val()) || null
     };
 }
 
