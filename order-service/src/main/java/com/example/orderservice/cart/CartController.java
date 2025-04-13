@@ -22,4 +22,14 @@ public class CartController {
         return cartService.addToCart(cartRequestDTO);
     }
 
+    @PatchMapping("/{uid}/update-amount")
+    public Mono<Void> updateCartAmount(@PathVariable Integer uid, @RequestBody UpdateCartAmountRequest request) {
+        return cartService.updateAmount(uid, request.getAmount());
+    }
+
+    @DeleteMapping("/{uid}")
+    public Mono<Void> deleteCartItem(@PathVariable Integer uid) {
+        return cartService.deleteCartItem(uid);
+    }
+
 }

@@ -42,6 +42,20 @@ function checkUserAddress(userUid) {
     });
 }
 
+//주소 검색 호출 함수
+function execDaumPostcode() {
+    new daum.Postcode({
+        oncomplete: function(data) {
+            // 도로명 주소 또는 지번 주소 넣기
+            var addr = data.roadAddress ? data.roadAddress : data.jibunAddress;
+
+            // 주소 입력란에 넣어주기
+            document.getElementById('address').value = addr;
+        }
+    }).open();
+}
+
+
 // 스토어 리스트 가져오기
 function getStores() {
     return $.ajax({
@@ -155,13 +169,14 @@ async function renderCartItems() {
         const items = await getCartItems(); // DB에서 가져옴
         items.forEach(item => {
             const itemHtml = `
-        <div class="cart-item" data-cart-item data-cart-uid="${item.uid}">
-            <input type="checkbox" class="cart-check" checked>
-            <span class="item-name">${item.menuName}</span>
-            <span class="item-price">${item.price}</span>원
-            <span class="item-calorie">${item.calorie} kcal</span>
-        </div>
-      `;
+                <div class="cart-item" data-cart-item data-cart-uid="${item.uid}">
+                    <input type="checkbox" class="cart-check" checked>
+                    <span class="item-name">${item.menuName}</span>
+                    <span class="item-price">${item.price}</span>원
+                    <span class="item-calorie">${item.calorie} kcal</span>
+                    <input type="number" class="item-amount" value="${item.amount || 1}" min="1" style="width: 50px;">
+                </div>
+            `;
             $container.append(itemHtml);
         });
     } catch (error) {
@@ -182,6 +197,35 @@ function getSelectedCartUids() {
     });
     return cartUids;
 }
+
+// 수량 변경 이벤트
+$(document).on('change', '.item-amount', function () {
+    const $cartItem = $(this).closest('[data-cart-item]');
+    const cartUid = $cartItem.data('cart-uid');
+    const newAmount = parseInt($(this).val(), 10);
+
+    if (isNaN(newAmount) || newAmount < 1) {
+        alert('수량은 1 이상이어야 합니다.');
+        $(this).val(1);
+        return;
+    }
+
+    $.ajax({
+        url: `/carts/${cartUid}/update-amount`,
+        method: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({ amount: newAmount }),
+        success: function () {
+            console.log('수량 업데이트 성공');
+            updateTotalPrice(); // 수량 바뀌면 총 금액도 다시 계산
+        },
+        error: function (err) {
+            console.error('수량 업데이트 실패', err.responseText);
+            alert('수량 변경 실패');
+        }
+    });
+});
+
 
 // 결제자 정보
 function getBuyerInfo() {
@@ -241,13 +285,17 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
                 url: '/orders/update-success',
                 method: 'POST',
                 contentType: 'application/json',
+                dataType: 'json',
                 data: JSON.stringify({
                     merchantUid: response.merchant_uid
-                })
-            }).then(() => {
-                alert('결제 성공 + 주문 성공!');
-            }).catch(error => {
-                console.error('상태 업데이트 실패', error);
+                }),
+                success: function(response) {
+                    alert(response.message);
+                },
+                error: function(err) {
+                    console.error('상태 업데이트 실패', err);
+                    alert('결제는 성공했지만, 주문 처리 중 문제가 발생했습니다. 고객센터에 문의하세요.');
+                }
             });
         } else {
             // 실패 업데이트
