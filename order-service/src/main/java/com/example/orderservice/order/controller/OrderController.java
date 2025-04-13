@@ -75,8 +75,6 @@ public class OrderController {
                 });
     }
 
-
-
     //주문 상세 정보
     private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {
         if (orders == null || orders.isEmpty()) {
@@ -104,6 +102,17 @@ public class OrderController {
                 .createdDate(firstOrder.createdDate())
                 .build();
     }
+
+    @PostMapping("/update-status")
+    public Mono<Void> updateOrderStatus(@RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateOrderStatusToSuccess(request.getMerchantUid());
+    }
+
+    @PostMapping("/update-fail")
+    public Mono<Void> updateOrderStatusFail(@RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateOrderStatusToFailed(request.getMerchantUid());
+    }
+
 
 }
 

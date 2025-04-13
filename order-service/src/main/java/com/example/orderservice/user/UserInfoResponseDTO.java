@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -13,9 +14,9 @@ public class UserInfoResponseDTO {
     private String password;
     private String userName;
     private String email;
-    private boolean emailyn;
+    private String emailyn;
     private String phone;
-    private boolean phoneyn;
+    private String phoneyn;
     private String mainAddress;
     private String subAddress1;
     private String subAddress2;

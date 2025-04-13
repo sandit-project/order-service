@@ -1,3 +1,11 @@
+// 유저 정보 가져오기
+function getUserInfo(userUid) {
+    return $.ajax({
+        url: `/users/${userUid}`,
+        method: 'GET'
+    });
+}
+
 // 장바구니 항목 가져오기
 function getCartItems() {
     return $.ajax({
@@ -24,6 +32,44 @@ function getSelectedCartItems() {
     return selectedItems;
 }
 
+// 주소 존재 여부 체크 API 호출
+function checkUserAddress(userUid) {
+    return $.ajax({
+        url: `/users/${userUid}/check-address`,
+        method: 'GET'
+    }).then(response => {
+        return response.hasAddress;
+    });
+}
+
+// 스토어 리스트 가져오기
+function getStores() {
+    return $.ajax({
+        url: '/stores',
+        method: 'GET',
+        contentType: 'application/json'
+    }).promise();
+}
+
+// 드롭다운에 스토어 추가하기
+function renderStoreDropdown() {
+    getStores()
+        .then(stores => {
+            const $storeSelect = $('#storeSelect'); // 드롭다운 셀렉터
+            $storeSelect.empty(); // 기존 옵션 삭제
+
+            // 기본 옵션 추가
+            $storeSelect.append('<option value="">스토어 선택</option>');
+
+            stores.forEach(store => {
+                const option = `<option value="${store.uid}">${store.storeName}</option>`;
+                $storeSelect.append(option);
+            });
+        })
+        .catch(error => {
+            console.error('스토어 목록 불러오기 실패', error);
+        });
+}
 
 let merchantUid = null;
 
@@ -31,10 +77,37 @@ $(document).ready(() => {
     const IMP = window.IMP;
     IMP.init('imp54787882');
 
+    const userUid = 1; //userUid는 하드코딩
+    getUserInfo(userUid)
+        .then(user => {
+            $('#name').val(user.userName);
+            $('#phone').val(user.phone);
+            $('#email').val(user.email);
+            $('#address').val(user.mainAddress);
+        })
+        .fail(error => {
+            console.error('유저 정보 불러오기 실패', error);
+        });
+
     renderCartItems();
     updateTotalPrice(); // 페이지 로딩 시 금액 계산
+    renderStoreDropdown(); // 페이지 로딩 시 스토어 드롭다운 렌더링
 
     $('#payButton').click(async () => {
+        try {
+            const hasAddress = await checkUserAddress(1);  // 1은 userUid로 임시 하드코딩
+            if (!hasAddress) {
+                alert('주소를 먼저 입력해야 주문할 수 있습니다.');
+                window.location.href = `/users/1/edit-address`;  // 주소 입력 페이지로 리다이렉션
+                return;
+            }
+        } catch (error) {
+            console.error('주소 체크 실패', error);
+            alert('주소 확인 중 문제가 발생했습니다.');
+            return;
+        }
+
+        //결제 로직
         const cartUids = getSelectedCartUids();
         const buyer = getBuyerInfo();
         const totalPrice = calculateTotal();
@@ -53,9 +126,16 @@ $(document).ready(() => {
         }
 
         merchantUid = generateMerchantUid();
+        const storeUid = $('#storeSelect').val();
+        console.log("storeUid:", storeUid);
+
+        if (!storeUid) {
+            alert('스토어를 선택해주세요!');
+            return;
+        }
 
         try {
-            await preparePayment(merchantUid, menuName, totalPrice);
+            await preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid);
             console.log('사전 검증 성공');
 
             requestPayment(cartUids, buyer, totalPrice, merchantUid);
@@ -115,7 +195,7 @@ function getBuyerInfo() {
 }
 
 // 사전 검증 API 호출
-function preparePayment(merchantUid, menuName, totalPrice) {
+function preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid) {
     return $.ajax({
         url: '/orders/prepare',
         method: 'POST',
@@ -124,6 +204,8 @@ function preparePayment(merchantUid, menuName, totalPrice) {
             merchantUid: merchantUid,
             menuName: menuName,
             totalPrice: totalPrice,
+            storeUid: storeUid,
+            userUid: userUid
         })
     });
 }
@@ -154,12 +236,35 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
         buyer_addr: buyer.address
     }, function (response) {
         if (response.success) {
-            // 결제 성공한 경우에만 주문 저장 API 호출
-            sendOrderRequest();
+            // 성공 업데이트
+            $.ajax({
+                url: '/orders/update-status',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    merchantUid: response.merchant_uid
+                })
+            }).then(() => {
+                alert('결제 성공 + 주문 성공!');
+            }).catch(error => {
+                console.error('상태 업데이트 실패', error);
+            });
         } else {
-            // 결제 실패했으면 저장 요청 보내지 말고 사용자에게 알림
-            alert('결제 실패했습니다: ' + response.error_msg);
+            // 실패 업데이트
+            $.ajax({
+                url: '/orders/update-fail',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    merchantUid: response.merchant_uid
+                })
+            }).then(() => {
+                alert('결제 실패 처리 완료');
+            }).catch(error => {
+                console.error('상태 업데이트 실패', error);
+            });
         }
+
     });
 }
 
@@ -172,9 +277,10 @@ function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, tota
             cartUid: item.cartUid,  // 장바구니 ID
             menuName: item.menuName,
             price: item.price,
-            calorie: item.calorie
+            calorie: item.calorie,
         }));
 
+        const storeUid = $('#storeSelect').val();
 
         $.ajax({
             type: 'POST',
@@ -186,6 +292,7 @@ function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, tota
                 payment: buyer.payMethod,
                 merchantUid: paymentResponse.merchant_uid,
                 paymentSuccess: paymentSuccess,
+                storeUid: storeUid,
                 buyerName: buyer.name,
                 buyerPhone: buyer.phone,
                 buyerEmail: buyer.email,

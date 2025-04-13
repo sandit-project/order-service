@@ -11,7 +11,9 @@ import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,7 +24,6 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
-    private final CartService cartService;
 
     public Flux<Order> findAllOrders() {
         return orderRepository.findAllOrders();
@@ -47,6 +48,7 @@ public class OrderService {
                         .flatMap(cart -> {
                             Order order = Order.builder()
                                     .userUid(orderRequestDTO.getUserUid())
+                                    .storeUid(orderRequestDTO.getStoreUid())
                                     .menuName(cart.menuName())
                                     .amount(cart.amount())
                                     .price(cart.price())
@@ -64,12 +66,14 @@ public class OrderService {
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
         Order order = Order.builder()
                 .merchantUid(request.getMerchantUid())
+                .storeUid(request.getStoreUid())
                 .menuName(request.getMenuName())
                 .amount(1)
                 .payment("card")
-                .status(OrderStatus.PAYMENT_CANCELLED)
+                .status(OrderStatus.ORDER_CREATED)
                 .price(request.getTotalPrice())
                 .calorie(0.0)
+                .userUid(request.getUserUid())
                 .build();
 
         return orderRepository.save(order)
@@ -79,6 +83,33 @@ public class OrderService {
                         .message("사전 검증 및 저장 완료")
                         .build());
     }
+
+    //결제 성공 후 상태 업데이트
+    public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_COMPLETED.name()))
+                .then();
+    }
+
+    //결제 취소 후 상태 업데이트
+    public Mono<Void> updateOrderStatusToFailed(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_FAILED.name()))
+                .then();
+    }
+
+    public Mono<Void> updateOrderStatusToCancelled(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_CANCELLED.name()))
+                .then();
+    }
+
+
+
+
 
 
 

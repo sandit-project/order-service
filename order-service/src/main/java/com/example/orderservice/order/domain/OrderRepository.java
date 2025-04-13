@@ -18,4 +18,8 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
 
     @Query("SELECT * FROM `orders` WHERE `merchant_uid` = :merchantUid")
     Mono<Order> findByMerchantUid(String merchantUid);
+
+    @Query("UPDATE `orders` SET status = :status WHERE uid = :uid")
+    Mono<Void> updateOrderStatus(@Param("uid") Integer uid, @Param("status") String status);
+
 }
