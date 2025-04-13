@@ -267,7 +267,7 @@ function requestPayment(merchantUid, totalPrice) {
     }, function (rsp) {
         if (rsp.success) {
             $.ajax({
-                url: `/orders/update-status`,
+                url: `/orders/update-success`,
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({

@@ -103,8 +103,8 @@ public class OrderController {
                 .build();
     }
 
-    @PostMapping("/update-status")
-    public Mono<Void> updateOrderStatus(@RequestBody UpdateOrderStatusRequest request) {
+    @PostMapping("/update-success")
+    public Mono<Void> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {
         return orderService.updateOrderStatusToSuccess(request.getMerchantUid());
     }
 
