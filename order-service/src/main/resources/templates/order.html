@@ -2,15 +2,16 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>더미 장바구니 주문 페이지</title>
+    <title>완제품 주문 페이지</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
+    <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <link rel="stylesheet" th:href="@{/css/order.css}">
     <script th:src="@{/js/order.js}"></script>
 </head>
 <body>
 
-<h1>더미 장바구니 주문</h1>
+<h1>완제품 장바구니 주문</h1>
 
 <div id="cartContainer">
     <!-- 여기에 장바구니 아이템들이 JS로 렌더링됨 -->
@@ -20,7 +21,8 @@
 
 <div class="buyer-info">
     <label>주문자 이름: <input type="text" id="name"></label><br/>
-    <label>주소: <input type="text" id="address"></label><br/>
+    <label>주소: <input type="text" id="address"></label>
+    <button type="button" onclick="execDaumPostcode()">주소 검색</button><br/>
     <label>이메일: <input type="text" id="email"></label><br/>
     <label>전화번호: <input type="text" id="phone"></label><br/>
     <label>결제수단:
@@ -29,11 +31,14 @@
         </select>
     </label>
 
+    <label>
+        스토어:
     <select id="storeSelect" required>
         <option value="">스토어 선택</option>
         <option value="1">스토어 1</option>
         <option value="2">스토어 2</option>
     </select>
+    </label>
 
 </div>
 

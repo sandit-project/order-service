@@ -92,7 +92,7 @@ public class OrderService {
                 .then();
     }
 
-    //결제 취소 후 상태 업데이트
+    //결제 실패 후 상태 업데이트
     public Mono<Void> updateOrderStatusToFailed(String merchantUid) {
         return orderRepository.findByMerchantUid(merchantUid)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
@@ -100,6 +100,7 @@ public class OrderService {
                 .then();
     }
 
+    //결제 취소 후 상태 업데이트
     public Mono<Void> updateOrderStatusToCancelled(String merchantUid) {
         return orderRepository.findByMerchantUid(merchantUid)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))

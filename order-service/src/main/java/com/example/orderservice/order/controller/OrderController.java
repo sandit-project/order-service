@@ -104,14 +104,23 @@ public class OrderController {
     }
 
     @PostMapping("/update-success")
-    public Mono<Void> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {
-        return orderService.updateOrderStatusToSuccess(request.getMerchantUid());
+    public Mono<OrderResponseDTO> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateOrderStatusToSuccess(request.getMerchantUid())
+                .thenReturn(OrderResponseDTO.builder()
+                        .success(true)
+                        .message("주문 완료!")
+                        .build());
     }
 
     @PostMapping("/update-fail")
-    public Mono<Void> updateOrderStatusFail(@RequestBody UpdateOrderStatusRequest request) {
-        return orderService.updateOrderStatusToFailed(request.getMerchantUid());
+    public Mono<OrderResponseDTO> updateOrderStatusFail(@RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateOrderStatusToFailed(request.getMerchantUid())
+                .thenReturn(OrderResponseDTO.builder()
+                        .success(false)
+                        .message("주문 실패!")
+                        .build());
     }
+
 
 
 }
