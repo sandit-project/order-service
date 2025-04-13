@@ -1,12 +1,26 @@
 package com.example.orderservice.payment;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
 public class PreparePaymentRequestDTO {
-    private String merchantUid;
+
+    @NotBlank(message = "menuName must be defined")
     private String menuName;
+
+    @NotNull(message = "totalPrice must be defined")
     private Integer totalPrice;
+
+    @NotBlank(message = "merchantUid must be defined")
+    private String merchantUid;
+
+    @NotNull(message = "store must be defined")
+    private Integer storeUid;
+
+    @NotNull(message = "user must be defined")
+    private Integer userUid;
 }

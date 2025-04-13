@@ -10,51 +10,106 @@
 </head>
 <body>
 
-<h1>샌드위치 커스텀 주문</h1>
+<h1>커스텀 샌드위치 주문하기</h1>
 
 <form id="customOrderForm">
     <div>
-        <label>빵 종류:</label>
-        <select id="bread">
-            <option value="1">화이트</option>
-        </select>
+        <label>빵 선택:
+            <select id="bread" required>
+                <option value="">선택하세요</option>
+                <option value="1">화이트</option>
+                <option value="2">허니오트</option>
+            </select>
+        </label>
     </div>
 
     <div>
-        <label>메인 재료:</label>
-        <select id="material">
-            <option value="1">닭고기</option>
-            <option value="2">소고기</option>
-            <option value="3">돼지고기</option>
-        </select>
+        <label>재료 1:
+            <select id="material1">
+                <option value="">선택 안함</option>
+                <option value="1">닭가슴살</option>
+                <option value="2">로스트비프</option>
+            </select>
+        </label>
     </div>
 
     <div>
-        <label>채소:</label>
-        <select id="vegetable">
-            <option value="1">상추</option>
-            <option value="2">토마토</option>
-            <option value="3">양파</option>
-        </select>
+        <label>재료 2:
+            <select id="material2">
+                <option value="">선택 안함</option>
+                <option value="3">에그마요</option>
+                <option value="4">참치</option>
+            </select>
+        </label>
     </div>
 
     <div>
-        <label>치즈:</label>
-        <select id="cheese">
-            <option value="1">모짜렐라</option>
-        </select>
+        <label>치즈 선택:
+            <select id="cheese">
+                <option value="">선택 안함</option>
+                <option value="1">아메리칸 치즈</option>
+                <option value="2">모짜렐라 치즈</option>
+            </select>
+        </label>
     </div>
 
     <div>
-        <label>소스:</label>
-        <select id="sauce1">
-            <option value="1">마요네즈</option>
-            <option value="2">케첩</option>
-        </select>
+        <label>소스 1:
+            <select id="sauce1">
+                <option value="">선택 안함</option>
+                <option value="1">허니머스타드</option>
+                <option value="2">스위트어니언</option>
+            </select>
+        </label>
     </div>
 
-    <button type="button" id="customPayButton">커스텀 주문하기</button>
+    <div>
+        <label>야채 1:
+            <select id="vegetable1">
+                <option value="">선택 안함</option>
+                <option value="1">양상추</option>
+                <option value="2">토마토</option>
+            </select>
+        </label>
+    </div>
+
+    <!-- 필요한 만큼 더 추가하면 됨 -->
 </form>
+
+<hr>
+
+<!-- 담은 샌드위치 리스트 -->
+<div id="cartContainer">
+    <h2>🛒 장바구니</h2>
+    <button type="button" id="addToCartButton">샌드위치 장바구니 담기</button>
+    <div id="cartItems"></div>
+</div>
+
+<hr>
+
+<!-- 구매자 정보 입력 -->
+<div class="buyer-info">
+    <h3>구매자 정보</h3>
+    <label>주문자 이름: <input type="text" id="name"></label><br/>
+    <label>주소: <input type="text" id="address"></label><br/>
+    <label>이메일: <input type="email" id="email"></label><br/>
+    <label>전화번호: <input type="text" id="phone"></label><br/>
+    <label>결제수단:
+        <select id="payMethod">
+            <option value="card">카드</option>
+        </select>
+    </label><br/>
+    <label>스토어 선택:
+        <select id="storeSelect">
+            <option value="">스토어를 선택하세요.</option>
+            <option value="1">스토어 1</option>
+            <option value="2">스토어 2</option>
+        </select>
+    </label>
+</div>
+
+<br>
+<button id="customPayButton">결제하고 주문하기</button>
 
 </body>
 </html>

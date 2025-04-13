@@ -16,8 +16,19 @@ public class CustomOrderService {
         return customOrderRepository.findById(uid);
     }
 
-
     public Mono<OrderResponseDTO> submitCustomOrder(CustomOrderRequestDTO customOrderRequestDTO) {
+        // 0. 방어 로직 추가 (필수값 체크)
+        if (isNull(customOrderRequestDTO.getBread()) ||
+                isNull(customOrderRequestDTO.getMaterial1()) ||
+                isNull(customOrderRequestDTO.getVegetable1()) ||
+                isNull(customOrderRequestDTO.getSauce1())) {
+
+            return Mono.just(OrderResponseDTO.builder()
+                    .success(false)
+                    .message("필수 커스텀 정보 누락: bread, material1, vegetable1, sauce1은 필수입니다.")
+                    .build());
+        }
+
         customOrderRequestDTO.getOrderRequestDTO()
                 .getItems()
                 .replaceAll(item -> new CartItem(
@@ -70,5 +81,9 @@ public class CustomOrderService {
                                     .message("커스텀 주문 성공")
                                     .build());
                 });
+    }
+
+    private boolean isNull(Integer value) {
+        return value == null;
     }
 }

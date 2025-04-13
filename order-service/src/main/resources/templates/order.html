@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>더미 장바구니 주문 페이지</title>
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
     <link rel="stylesheet" th:href="@{/css/order.css}">
     <script th:src="@{/js/order.js}"></script>
@@ -13,20 +13,8 @@
 <h1>더미 장바구니 주문</h1>
 
 <div id="cartContainer">
-    <!-- 여기에 더미 장바구니 아이템들이 JS로 렌더링됨 -->
+    <!-- 여기에 장바구니 아이템들이 JS로 렌더링됨 -->
 </div>
-
-<table id="cartTable">
-    <thead>
-    <tr>
-        <th>선택</th>
-        <th>상품명</th>
-        <th>가격</th>
-    </tr>
-    </thead>
-    <tbody id="cartItemsContainer">
-    </tbody>
-</table>
 
 <hr/>
 
@@ -40,6 +28,13 @@
             <option value="card">카드</option>
         </select>
     </label>
+
+    <select id="storeSelect" required>
+        <option value="">스토어 선택</option>
+        <option value="1">스토어 1</option>
+        <option value="2">스토어 2</option>
+    </select>
+
 </div>
 
 <div class="summary">
