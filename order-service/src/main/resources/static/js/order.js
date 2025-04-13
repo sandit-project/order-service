@@ -238,7 +238,7 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
         if (response.success) {
             // 성공 업데이트
             $.ajax({
-                url: '/orders/update-status',
+                url: '/orders/update-success',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({
