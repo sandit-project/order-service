@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -26,5 +27,6 @@ public class OrderRequestDTO {
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
+        private LocalDateTime reservationDate;
         private boolean paymentSuccess;
 }

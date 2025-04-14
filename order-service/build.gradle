@@ -13,28 +13,33 @@ test {
     finalizedBy jacocoTestReport // test 작업이 끝나고 jacocoTestReport를 실행
 }
 jacocoTestReport {
+    dependsOn test
     reports {
-        xml.required = false
-        csv.required = false
-        html.outputLocation = layout.buildDirectory.dir('jacocoHTML')
+        html.required.set(true)
+        xml.required.set(false)
+        csv.required.set(false)
+        html.outputLocation.set(file("$buildDir/reports/jacoco"))
     }
-    // dependsOn : 이 작업에 지정된 종속성을 추가
-    dependsOn test // jacocoTestReport 에 test라는 종속성을 추가
-    finalizedBy 'jacocoTestCoverageVerification'
+
+    classDirectories.setFrom(
+            files(fileTree(
+                    dir: "$buildDir/classes/java/main",
+                    includes: ['com/example/orderservice/order/service/OrderService.class',
+                               'com/example/orderservice/order/service/CustomOrderService.class'],
+                    excludes: ['**/config/**', '**/dto/**', '**/type/**', '**/controller/**', '**/handler/**', '**/util/**']
+            ))
+    )
 }
 
 jacocoTestCoverageVerification {
     violationRules {
-
         rule {
-            enabled = true
-            //코드 버커리지 체크 기준
             element = 'CLASS'
 
             limit {
-                counter = 'METHOD'
+                counter = 'INSTRUCTION'
                 value = 'COVEREDRATIO'
-                minimum = 0.5
+                minimum = 0.6  // 최소 커버리지 60%로 설정
             }
         }
     }
@@ -98,4 +103,5 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'
 }

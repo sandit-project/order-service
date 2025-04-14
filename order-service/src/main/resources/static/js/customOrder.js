@@ -45,6 +45,23 @@ function getCustomOrderData() {
 function addCustomSandwichToCart() {
     const customData = getCustomOrderData();
 
+    fetch("/orders/custom", {
+        method: "POST",
+        body: JSON.stringify(customData),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    })
+        .then(response => response.json())
+        .then(result => {
+            alert(result.message);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("커스텀 주문 실패");
+        });
+
+
     $.ajax({
         url: '/carts',
         method: 'POST',
@@ -57,16 +74,19 @@ function addCustomSandwichToCart() {
         }),
         success: function(response) {
             const cartUid = response.uid;
+
             if (!cartUid) {
                 console.error('cartUid가 없습니다:', response);
                 alert('장바구니 추가 실패: cartUid 없음');
                 return;
             }
+            alert(response.message);
             window.location.href = '/order'; // 바로 주문 페이지로 이동
         },
         error: function(error) {
             console.error('샌드위치 추가 실패', error.responseText);
-            alert('샌드위치 추가 실패');
+            const errorMessage = error.responseJSON?.message || '샌드위치 추가 실패';
+            alert(errorMessage);
         }
     });
 }
