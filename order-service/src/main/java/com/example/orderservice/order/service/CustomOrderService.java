@@ -3,6 +3,7 @@ package com.example.orderservice.order.service;
 import com.example.orderservice.order.domain.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -11,6 +12,10 @@ public class CustomOrderService {
 
     private final CustomOrderRepository customOrderRepository;
     private final OrderService orderService;
+
+    public Flux<CustomOrder> findAllOrders() {
+        return customOrderRepository.findAll();
+    }
 
     public Mono<CustomOrder> findByUid(Integer uid) {
         return customOrderRepository.findById(uid);

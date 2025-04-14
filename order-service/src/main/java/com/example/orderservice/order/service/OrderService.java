@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -56,13 +58,19 @@ public class OrderService {
                                     .payment(orderRequestDTO.getPayment())
                                     .merchantUid(orderRequestDTO.getMerchantUid())
                                     .status(orderStatus)
+                                    .reservationDate(
+                                            orderRequestDTO.getReservationDate() != null
+                                                    ? orderRequestDTO.getReservationDate()
+                                                    : LocalDateTime.now()
+                                    )
                                     .build();
                             return orderRepository.save(order);
                         })
                 );
     }
 
-
+    
+    // 결제 사전 검증
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
         Order order = Order.builder()
                 .merchantUid(request.getMerchantUid())

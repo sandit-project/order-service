@@ -92,6 +92,7 @@ $(document).ready(() => {
     IMP.init('imp54787882');
 
     const userUid = 1; //userUid는 하드코딩
+
     getUserInfo(userUid)
         .then(user => {
             $('#name').val(user.userName);
@@ -108,6 +109,8 @@ $(document).ready(() => {
     renderStoreDropdown(); // 페이지 로딩 시 스토어 드롭다운 렌더링
 
     $('#payButton').click(async () => {
+        const reservationDate = $('#reservationDate').val();
+
         try {
             const hasAddress = await checkUserAddress(1);  // 1은 userUid로 임시 하드코딩
             if (!hasAddress) {
@@ -149,7 +152,7 @@ $(document).ready(() => {
         }
 
         try {
-            await preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid);
+            await preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid, reservationDate);
             console.log('사전 검증 성공');
 
             requestPayment(cartUids, buyer, totalPrice, merchantUid);
@@ -239,7 +242,7 @@ function getBuyerInfo() {
 }
 
 // 사전 검증 API 호출
-function preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid) {
+function preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid, reservationDate) {
     return $.ajax({
         url: '/orders/prepare',
         method: 'POST',
@@ -249,7 +252,8 @@ function preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid) {
             menuName: menuName,
             totalPrice: totalPrice,
             storeUid: storeUid,
-            userUid: userUid
+            userUid: userUid,
+            reservationDate: reservationDate
         })
     });
 }
