@@ -93,6 +93,21 @@ $(document).ready(() => {
 
     const userUid = 1; //userUid는 하드코딩
 
+    // 예약 시간 입력 필드가 비어있다면 현재 시간으로 채워준다.
+    const $reservationInput = $('#reservationDate');
+    if (!$reservationInput.val()) {
+        const now = new Date(); // 현재 시간
+        // 포맷팅: yyyy-MM-ddTHH:mm
+        const year = now.getFullYear();
+        const month = ('0' + (now.getMonth() + 1)).slice(-2);
+        const day = ('0' + now.getDate()).slice(-2);
+        const hours = ('0' + now.getHours()).slice(-2);
+        const minutes = ('0' + now.getMinutes()).slice(-2);
+        const formatted = `${year}-${month}-${day}T${hours}:${minutes}`;
+        $reservationInput.val(formatted);
+    }
+    console.log("예약 시간 값:", $reservationInput.val());
+
     getUserInfo(userUid)
         .then(user => {
             $('#name').val(user.userName);
@@ -109,7 +124,12 @@ $(document).ready(() => {
     renderStoreDropdown(); // 페이지 로딩 시 스토어 드롭다운 렌더링
 
     $('#payButton').click(async () => {
-        const reservationDate = $('#reservationDate').val();
+        // 예약 시간 input의 값을 읽어오되, 값이 없으면 null로 처리
+        let reservationDate = $('#reservationDate').val();
+        if (!reservationDate || reservationDate.trim() === "") {
+            reservationDate = null;
+        }
+        console.log("전송될 예약 시간:", reservationDate);
 
         try {
             const hasAddress = await checkUserAddress(1);  // 1은 userUid로 임시 하드코딩
@@ -151,11 +171,33 @@ $(document).ready(() => {
             return;
         }
 
+        // 커스텀 주문 옵션 데이터 수집 (만약 해당 영역이 있다면)
+        let customOrderRequestDTO = null;
+        if ($('#customOptions').length > 0 && $('#customOptions').is(':visible')) {
+            customOrderRequestDTO = {
+                bread: parseInt($('#bread').val()) || null,
+                material1: parseInt($('#material1').val()) || null,
+                material2: parseInt($('#material2').val()) || null,
+                material3: parseInt($('#material3').val()) || null,
+                vegetable1: parseInt($('#vegetable1').val()) || null,
+                vegetable2: parseInt($('#vegetable2').val()) || null,
+                vegetable3: parseInt($('#vegetable3').val()) || null,
+                vegetable4: parseInt($('#vegetable4').val()) || null,
+                vegetable5: parseInt($('#vegetable5').val()) || null,
+                vegetable6: parseInt($('#vegetable6').val()) || null,
+                vegetable7: parseInt($('#vegetable7').val()) || null,
+                vegetable8: parseInt($('#vegetable8').val()) || null,
+                sauce1: parseInt($('#sauce1').val()) || null,
+                sauce2: parseInt($('#sauce2').val()) || null,
+                sauce3: parseInt($('#sauce3').val()) || null
+            };
+        }
+
         try {
             await preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid, reservationDate);
             console.log('사전 검증 성공');
 
-            requestPayment(cartUids, buyer, totalPrice, merchantUid);
+            requestPayment(cartUids, buyer, totalPrice, merchantUid, reservationDate, customOrderRequestDTO);
         } catch (err) {
             console.error('사전 검증 실패', err);
             alert('사전 검증 실패');
@@ -259,7 +301,7 @@ function preparePayment(merchantUid, menuName, totalPrice, storeUid, userUid, re
 }
 
 // 실제 결제 요청
-function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
+function requestPayment(cartUids, buyer, totalPrice, merchantUid, reservationDate, customOrderRequestDTO) {
     const IMP = window.IMP;
     const selectedItems = getSelectedCartItems();
     let menuName = '';
@@ -284,7 +326,7 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
         buyer_addr: buyer.address
     }, function (response) {
         if (response.success) {
-            // 성공 업데이트
+            // 결제 성공 시 업데이트 요청
             $.ajax({
                 url: '/orders/update-success',
                 method: 'POST',
@@ -293,8 +335,44 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
                 data: JSON.stringify({
                     merchantUid: response.merchant_uid
                 }),
-                success: function(response) {
-                    alert(response.message);
+                success: function(updateRes) {
+                    alert(updateRes.message || "결제 성공!");
+                    // 커스텀 옵션 데이터(customOrderRequestDTO)가 존재하면 최종 주문 연동 API 호출
+                    if (customOrderRequestDTO) {
+                        const finalOrderPayload = {
+                            orderRequestDTO: {
+                                userUid: buyer.userUid,
+                                storeUid: parseInt($('#storeSelect').val()),
+                                reservationDate: reservationDate,
+                                payment: buyer.payMethod,
+                                merchantUid: merchantUid,
+                                totalPrice: totalPrice,
+                                items: selectedItems.map(item => ({
+                                    cartUid: item.cartUid,
+                                    menuName: item.menuName,
+                                    amount: item.amount || 1,
+                                    price: item.price,
+                                    calorie: item.calorie
+                                }))
+                            },
+                            customOrderRequestDTO: customOrderRequestDTO
+                        };
+
+                        $.ajax({
+                            type: "POST",
+                            url: "/orders/custom/final",
+                            contentType: "application/json",
+                            data: JSON.stringify(finalOrderPayload),
+                            success: function(finalRes) {
+                                alert(finalRes.message || "최종 주문 생성 완료!");
+                                window.location.reload();
+                            },
+                            error: function(error) {
+                                console.error("최종 주문 생성 실패:", error.responseText);
+                                alert("최종 주문 생성 실패: " + error.responseText);
+                            }
+                        });
+                    }
                 },
                 error: function(err) {
                     console.error('상태 업데이트 실패', err);
@@ -302,7 +380,7 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
                 }
             });
         } else {
-            // 실패 업데이트
+            // 결제 실패 시 처리
             $.ajax({
                 url: '/orders/update-fail',
                 method: 'POST',
@@ -316,14 +394,14 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid) {
                 console.error('상태 업데이트 실패', error);
             });
         }
-
     });
 }
 
 // 결제 후 서버에 주문 전송
-function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, totalPrice) {
+function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, totalPrice, reservationDate) {
     return new Promise((resolve, reject) => {
         const selectedItems = getSelectedCartItems();
+        const reservationDate = $('#reservationDate').val();
 
         const items = selectedItems.map(item => ({
             cartUid: item.cartUid,  // 장바구니 ID
@@ -349,7 +427,8 @@ function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, tota
                 buyerPhone: buyer.phone,
                 buyerEmail: buyer.email,
                 buyerAddr: buyer.address,
-                price: totalPrice
+                price: totalPrice,
+                reservationDate: reservationDate
             }),
             success: function(response) {
                 console.log('주문 저장 성공', response);

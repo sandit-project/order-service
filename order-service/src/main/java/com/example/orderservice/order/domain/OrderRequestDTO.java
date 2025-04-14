@@ -1,16 +1,19 @@
 package com.example.orderservice.order.domain;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
+@Setter
 @Builder
 //전체 주문 정보
 public class OrderRequestDTO {
@@ -27,6 +30,7 @@ public class OrderRequestDTO {
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
         private LocalDateTime reservationDate;
         private boolean paymentSuccess;
 }

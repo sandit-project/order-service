@@ -17,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -58,11 +60,7 @@ public class OrderService {
                                     .payment(orderRequestDTO.getPayment())
                                     .merchantUid(orderRequestDTO.getMerchantUid())
                                     .status(orderStatus)
-                                    .reservationDate(
-                                            orderRequestDTO.getReservationDate() != null
-                                                    ? orderRequestDTO.getReservationDate()
-                                                    : LocalDateTime.now()
-                                    )
+                                    .reservationDate(orderRequestDTO.getReservationDate())
                                     .build();
                             return orderRepository.save(order);
                         })
@@ -72,12 +70,24 @@ public class OrderService {
     
     // 결제 사전 검증
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
+
+        // 예약 시간이 기본값(현재 시각)과 5분 내로 차이나는 지 확인 후 null 처리
+        LocalDateTime reservationTime = request.getReservationDate();
+        if (reservationTime != null) {
+            LocalDateTime nowTruncated = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
+            LocalDateTime inputTruncated = reservationTime.truncatedTo(ChronoUnit.MINUTES);
+            if (Duration.between(inputTruncated, nowTruncated).abs().toMinutes() < 5) {
+                request.setReservationDate(null);
+            }
+        }
+
         Order order = Order.builder()
                 .merchantUid(request.getMerchantUid())
                 .storeUid(request.getStoreUid())
                 .menuName(request.getMenuName())
                 .amount(1)
                 .payment("card")
+                .reservationDate(request.getReservationDate())
                 .status(OrderStatus.ORDER_CREATED)
                 .price(request.getTotalPrice())
                 .calorie(0.0)

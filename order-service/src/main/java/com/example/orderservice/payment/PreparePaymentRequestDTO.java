@@ -4,8 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @Builder
 public class PreparePaymentRequestDTO {
 
@@ -17,6 +21,8 @@ public class PreparePaymentRequestDTO {
 
     @NotBlank(message = "merchantUid must be defined")
     private String merchantUid;
+
+    private LocalDateTime reservationDate;
 
     @NotNull(message = "store must be defined")
     private Integer storeUid;

@@ -11,22 +11,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static com.example.orderservice.order.domain.OrderStatus.*;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CustomOrderServiceTest {
 
-    @Mock
     private CustomOrderRepository customOrderRepository;
-
-    @Mock
     private OrderService orderService;
-
-    @InjectMocks
     private CustomOrderService customOrderService;
 
     @BeforeEach
@@ -39,14 +30,13 @@ class CustomOrderServiceTest {
     @Test
     void 필수값_누락시_에러반환() {
         CustomOrderRequestDTO invalidRequest = CustomOrderRequestDTO.builder()
-                .bread(null)  // 빵이 null
+                .bread(null)
                 .material1(null)
                 .vegetable1(null)
                 .sauce1(null)
                 .build();
 
         Mono<OrderResponseDTO> responseMono = customOrderService.submitCustomOrder(invalidRequest);
-
         StepVerifier.create(responseMono)
                 .assertNext(response -> {
                     assertFalse(response.isSuccess());
@@ -57,37 +47,23 @@ class CustomOrderServiceTest {
 
     @Test
     void 정상_커스텀주문_성공() {
-        OrderRequestDTO innerRequest = OrderRequestDTO.builder()
-                .userUid(1)
-                .storeUid(2)
-                .items(List.of(new CartItem(1, "커스텀 테스트 샌드위치", 1, 5000, 300.0)))
-                .payment("카드")
-                .merchantUid("test-merchant")
-                .paymentSuccess(true)
-                .reservationDate(LocalDateTime.now())
-                .build();
-
+        // 내부적으로 주문 생성은 orderService.submitOrder()를 호출하지만,
+        // 키오스크 방식에서는 커스텀 옵션만 저장하므로, orderRequestDTO는 사용하지 않음.
         CustomOrderRequestDTO request = CustomOrderRequestDTO.builder()
                 .bread(1)
                 .material1(2)
                 .vegetable1(3)
                 .sauce1(4)
-                .orderRequestDTO(innerRequest)
                 .build();
 
-
-        when(orderService.submitOrder(any()))
-                .thenReturn(Flux.just(new com.example.orderservice.order.domain.Order(1, 1, 2, 3, "merchant-1234", "커스텀 샌드위치", 1, 6000, 300.0, "카드", ORDER_CREATED, LocalDateTime.now(),LocalDateTime.now(),1)));
-
         when(customOrderRepository.save(any(CustomOrder.class)))
-                .thenReturn(Mono.just(new CustomOrder(1,1,1,2,3,1,1,2, 3, 4, 5, 6, 7, 8, 1, 2, 3,1)));
+                .thenReturn(Mono.just(new CustomOrder(1, 1, 2, 3, null, null, null, null, null, null, null, null, null, null, 4, null, null, 1)));
 
         Mono<OrderResponseDTO> responseMono = customOrderService.submitCustomOrder(request);
-
         StepVerifier.create(responseMono)
                 .assertNext(response -> {
                     assertTrue(response.isSuccess());
-                    assertEquals("커스텀 주문 성공", response.getMessage());
+                    assertEquals("커스텀 주문 옵션 저장 성공. (추후 주문 생성 시 연동 필요)", response.getMessage());
                 })
                 .verifyComplete();
     }
