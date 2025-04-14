@@ -29,8 +29,8 @@ public record Order (
         Double calorie,
         String payment,
         OrderStatus status,
-
         @CreatedDate LocalDateTime createdDate,
+        @Column("reservation_date")
         LocalDateTime reservationDate,
         @Version int version
 

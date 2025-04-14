@@ -17,4 +17,5 @@ public class OrderDetailResponseDTO {
     private String payment;
     private String status;
     private LocalDateTime createdDate;
+    private LocalDateTime reservationDate;
 }
