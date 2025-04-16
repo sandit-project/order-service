@@ -29,6 +29,11 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
 
+    // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
+    protected LocalDateTime getNow() {
+        return LocalDateTime.now();
+    }
+
     public Flux<Order> findAllOrders() {
         return orderRepository.findAllOrders();
     }
@@ -42,6 +47,20 @@ public class OrderService {
     }
 
     public Flux<Order> submitOrder(OrderRequestDTO orderRequestDTO) {
+
+        // 예약 시간이 기본값(페이지 로드시 입력된 값)과 현재 시각의 차이가 5분 미만이면 null 처리
+        LocalDateTime reservationDate = orderRequestDTO.getReservationDate();
+        if (reservationDate != null) {
+            LocalDateTime nowTruncated = getNow().truncatedTo(ChronoUnit.MINUTES);
+            LocalDateTime inputTruncated = reservationDate.truncatedTo(ChronoUnit.MINUTES);
+            // 만약 차이가 5분 미만이면 기본값으로 간주
+            if (Duration.between(inputTruncated, nowTruncated).abs().toMinutes() < 5) {
+                reservationDate = null;
+            }
+        }
+
+        LocalDateTime finalReservationDate = reservationDate;
+
         OrderStatus orderStatus = orderRequestDTO.isPaymentSuccess()
                 ? OrderStatus.PAYMENT_COMPLETED
                 : OrderStatus.PAYMENT_CANCELLED;
@@ -60,24 +79,24 @@ public class OrderService {
                                     .payment(orderRequestDTO.getPayment())
                                     .merchantUid(orderRequestDTO.getMerchantUid())
                                     .status(orderStatus)
-                                    .reservationDate(orderRequestDTO.getReservationDate())
+                                    .reservationDate(finalReservationDate)
                                     .build();
                             return orderRepository.save(order);
                         })
                 );
     }
 
-    
+
     // 결제 사전 검증
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
 
         // 예약 시간이 기본값(현재 시각)과 5분 내로 차이나는 지 확인 후 null 처리
         LocalDateTime reservationTime = request.getReservationDate();
         if (reservationTime != null) {
-            LocalDateTime nowTruncated = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
+            LocalDateTime nowTruncated = getNow().truncatedTo(ChronoUnit.MINUTES);
             LocalDateTime inputTruncated = reservationTime.truncatedTo(ChronoUnit.MINUTES);
             if (Duration.between(inputTruncated, nowTruncated).abs().toMinutes() < 5) {
-                request.setReservationDate(null);
+                reservationTime = null;
             }
         }
 
@@ -87,7 +106,7 @@ public class OrderService {
                 .menuName(request.getMenuName())
                 .amount(1)
                 .payment("card")
-                .reservationDate(request.getReservationDate())
+                .reservationDate(reservationTime)
                 .status(OrderStatus.ORDER_CREATED)
                 .price(request.getTotalPrice())
                 .calorie(0.0)
