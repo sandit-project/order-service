@@ -41,10 +41,9 @@ import static org.mockito.Mockito.*;
                 }
             };
         }
-
-        // (1) preparePayment: 사용자가 예약 시간을 지정한 경우 그대로 저장되어야 함.
+        
         @Test
-        void preparePayment_shouldSaveProvidedReservationDate() {
+        void 사전검증_사용자가_예약시간을_지정한_경우() {
             LocalDateTime reservationTime = LocalDateTime.of(2025, 4, 16, 12, 20);
             PreparePaymentRequestDTO request = PreparePaymentRequestDTO.builder()
                     .merchantUid("test-merchant")
@@ -72,9 +71,8 @@ import static org.mockito.Mockito.*;
                     .verifyComplete();
         }
 
-        // (2) preparePayment: 예약 시간이 기본값(현재 시각과 5분 미만 차)인 경우 null 처리되어야 함.
         @Test
-        void preparePayment_shouldSaveReservationDateAsNull_ifDefaultValue() {
+        void 사전검증_사용자가_예약시간을_지정하지_않은_경우() {
             // 테스트용 고정된 현재 시각은 2025-04-16T12:14 (setUp()에서 지정)
             LocalDateTime defaultTime = LocalDateTime.of(2025, 4, 16, 12, 14);
             PreparePaymentRequestDTO request = PreparePaymentRequestDTO.builder()
@@ -101,9 +99,8 @@ import static org.mockito.Mockito.*;
                     .verifyComplete();
         }
 
-        // (3) submitOrder: 사용자가 예약 시간을 지정한 경우 그대로 저장되어야 함.
         @Test
-        void submitOrder_shouldSaveProvidedReservationDate() {
+        void 주문_사용자가_예약시간을_지정한_경우() {
             LocalDateTime reservationTime = LocalDateTime.of(2025, 4, 16, 12, 30);
             OrderRequestDTO orderRequestDTO = OrderRequestDTO.builder()
                     .userUid(1)
@@ -131,9 +128,8 @@ import static org.mockito.Mockito.*;
                     .verifyComplete();
         }
 
-        // (4) submitOrder: 예약 시간이 기본값(현재 시각과 거의 동일, 즉 2025-04-16T12:14)인 경우 null 처리되어야 함.
         @Test
-        void submitOrder_shouldSaveReservationDateAsNull_ifDefaultValue() {
+        void 주문_사용자가_예약시간을_지정하지_않은_경우() {
             LocalDateTime defaultTime = LocalDateTime.of(2025, 4, 16, 12, 14); // 고정된 현재 시각과 동일
             OrderRequestDTO orderRequestDTO = OrderRequestDTO.builder()
                     .userUid(1)
