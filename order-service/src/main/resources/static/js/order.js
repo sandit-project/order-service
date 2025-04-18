@@ -114,6 +114,7 @@ $(document).ready(() => {
             $('#phone').val(user.phone);
             $('#email').val(user.email);
             $('#address').val(user.mainAddress);
+            $('#subAddress1').val(user.subAddress1);
         })
         .fail(error => {
             console.error('유저 정보 불러오기 실패', error);
@@ -279,6 +280,7 @@ function getBuyerInfo() {
         phone: $('#phone').val(),
         email: $('#email').val(),
         address: $('#address').val(),
+        subAddress1: $('#sub_address_1').val(),
         payMethod: $('#payMethod').val() || 'card'
     };
 }
@@ -323,7 +325,8 @@ function requestPayment(cartUids, buyer, totalPrice, merchantUid, reservationDat
         buyer_name: buyer.name,
         buyer_phone: buyer.phone,
         buyer_email: buyer.email,
-        buyer_addr: buyer.address
+        buyer_addr: buyer.address,
+        buyer_addr_sub: buyer.subAddress1,
     }, function (response) {
         if (response.success) {
             // 결제 성공 시 업데이트 요청
@@ -427,6 +430,7 @@ function sendOrderRequest(cartUids, buyer, paymentResponse, paymentSuccess, tota
                 buyerPhone: buyer.phone,
                 buyerEmail: buyer.email,
                 buyerAddr: buyer.address,
+                buyerAddrSub: buyer.subAddress1,
                 price: totalPrice,
                 reservationDate: reservationDate
             }),

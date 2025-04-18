@@ -11,6 +11,7 @@ public class UserController {
 
     private final UserService userService;
 
+    //회원 정보 확인 (통합 시 수정)
     @GetMapping("/{uid}")
     public Mono<UserInfoResponseDTO> getUserInfo(@PathVariable Integer uid) {
         return userService.findByUserUid(uid);
