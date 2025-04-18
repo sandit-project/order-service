@@ -28,13 +28,13 @@ public class UserController {
     }
 
     //주소 가져오기
-    @GetMapping("/{uid}/addresses")
+    @GetMapping("/{uid}/address")
     public Mono<UserInfoResponseDTO> getUserAddresses(@PathVariable Integer uid) {
         return userService.getUserAddresses(uid);
     }
 
     //주소 입력
-    @PostMapping("/{uid}/addresses")
+    @PostMapping("/{uid}/address")
     public Mono<UserInfoResponseDTO> updateUserAddress(@PathVariable Integer uid, @RequestBody UpdateAddressRequest request) {
         return Mono.fromCallable(() ->
                 userClient.updateUserAddress(uid, request)
