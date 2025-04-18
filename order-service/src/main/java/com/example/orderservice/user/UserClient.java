@@ -14,6 +14,6 @@ public interface UserClient {
 
     //주소 수정
     @PutMapping("/auths/{userUid}/address")
-    UserInfoResponseDTO updateUserAddress(@PathVariable Integer userUid, @RequestBody UpdateAddressRequest request);
+    UpdateAddressResponse updateUserAddress(@PathVariable Integer userUid, @RequestBody UpdateAddressRequest request);
 
 }
