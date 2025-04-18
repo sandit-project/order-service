@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import static com.example.orderservice.order.service.OrderService.log;
+
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -33,12 +35,11 @@ public class UserController {
         return userService.getUserAddresses(uid);
     }
 
-    //주소 입력
-    @PostMapping("/{uid}/address")
-    public Mono<UserInfoResponseDTO> updateUserAddress(@PathVariable Integer uid, @RequestBody UpdateAddressRequest request) {
-        return Mono.fromCallable(() ->
-                userClient.updateUserAddress(uid, request)
-        );
+    //주소 수정
+    @PutMapping("/{uid}/address")
+    public Mono<UpdateAddressResponse> updateUserAddress(@PathVariable int uid, @RequestBody UpdateAddressRequest request) {
+        log.info("update user address :: {}", request);
+        return userService.updateAddress(uid,request);
     }
 
 }

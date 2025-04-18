@@ -26,9 +26,8 @@ public class UserService {
     }
 
     // 주소 업데이트
-    public Mono<UserInfoResponseDTO> updateAddress(Integer userUid, UpdateAddressRequest request) {
+    public Mono<UpdateAddressResponse> updateAddress(Integer userUid, UpdateAddressRequest request) {
         return Mono.just(userClient.updateUserAddress(userUid, request));
     }
-
 
 }
