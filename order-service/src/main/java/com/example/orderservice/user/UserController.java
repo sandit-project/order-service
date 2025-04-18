@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 public class UserController {
 
     private final UserService userService;
+    private final UserClient userClient;
 
     //회원 정보 확인 (통합 시 수정)
     @GetMapping("/{uid}")
@@ -35,7 +36,9 @@ public class UserController {
     //주소 입력
     @PostMapping("/{uid}/addresses")
     public Mono<UserInfoResponseDTO> updateUserAddress(@PathVariable Integer uid, @RequestBody UpdateAddressRequest request) {
-        return userService.updateAddress(uid, request);
+        return Mono.fromCallable(() ->
+                userClient.updateUserAddress(uid, request)
+        );
     }
 
 }
