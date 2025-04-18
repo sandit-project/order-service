@@ -27,10 +27,7 @@ public class UserService {
 
     // 주소 업데이트
     public Mono<UserInfoResponseDTO> updateAddress(Integer userUid, UpdateAddressRequest request) {
-        return Mono.fromCallable(() -> {
-            userClient.updateUserAddress(userUid, request); // 1. 주소 수정 호출
-            return userClient.getUserInfo(userUid);         // 2. 수정된 유저 정보 조회
-        });
+        return Mono.just(userClient.updateUserAddress(userUid, request));
     }
 
 

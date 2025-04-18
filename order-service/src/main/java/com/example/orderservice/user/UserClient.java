@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "userClient", url = "http://localhost:9002", fallback = UserClientFallback.class)
+@FeignClient(name = "userClient", url = "http://localhost:9002")
 public interface UserClient {
 
     @GetMapping("/auths/users/{userUid}")
@@ -14,6 +14,6 @@ public interface UserClient {
 
     //주소 수정
     @PutMapping("/auths/{userUid}/address")
-    void updateUserAddress(@PathVariable Integer userUid, @RequestBody UpdateAddressRequest request);
+    UserInfoResponseDTO updateUserAddress(@PathVariable Integer userUid, @RequestBody UpdateAddressRequest request);
 
 }
