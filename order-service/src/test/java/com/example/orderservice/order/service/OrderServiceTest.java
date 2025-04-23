@@ -11,6 +11,7 @@ import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -27,13 +28,14 @@ import static org.mockito.Mockito.*;
         private OrderRepository orderRepository;
         private CartRepository cartRepository;
         private OrderService orderService;
+        private TransactionalOperator txOp;
 
         // 고정된 현재 시간으로 테스트할 수 있도록 OrderService의 익명 서브클래스를 생성
         @BeforeEach
         void setUp() {
             orderRepository = mock(OrderRepository.class);
             cartRepository = mock(CartRepository.class);
-            orderService = new OrderService(orderRepository, cartRepository) {
+            orderService = new OrderService(orderRepository, cartRepository, txOp) {
                 @Override
                 protected LocalDateTime getNow() {
                     // 테스트 전용 고정 현재 시각
