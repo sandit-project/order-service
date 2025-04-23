@@ -87,7 +87,17 @@ public class OrderService {
 
     // 결제 사전 검증
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO req) {
-        // 사전 검증용 주문 객체 생성
+        // 1) 예약시간 처리
+        LocalDateTime reservationTime = req.getReservationDate();
+        if (reservationTime != null) {
+            LocalDateTime nowTrunc   = getNow().truncatedTo(ChronoUnit.MINUTES);
+            LocalDateTime inputTrunc = reservationTime.truncatedTo(ChronoUnit.MINUTES);
+            if (Duration.between(inputTrunc, nowTrunc).abs().toMinutes() < 5) {
+                reservationTime = null;
+            }
+        }
+
+        // 2) Order 엔티티 생성 (reservationDate 에 위에서 가공한 값을 넣는다)
         Order toSave = Order.builder()
                 .merchantUid(req.getMerchantUid())
                 .storeUid(req.getStoreUid())
@@ -98,18 +108,17 @@ public class OrderService {
                 .price(req.getTotalPrice())
                 .calorie(0.0)
                 .userUid(req.getUserUid())
-                .reservationDate(req.getReservationDate())
+                .reservationDate(reservationTime)   // 여기!
                 .build();
 
-        // 트랜잭션 안에서 저장하고 DTO 로 변환
+        // 3) 트랜잭션 안에서 저장하고 DTO 로 변환
         return txOp.execute(tx -> orderRepository.save(toSave))
                 .single()
                 .map(saved -> PreparePaymentResponseDTO.builder()
                         .merchantUid(saved.merchantUid())
                         .requestedAmount(saved.price())
                         .message("사전 검증 및 저장 완료")
-                        .build()
-                );
+                        .build());
     }
 
     //결제 성공 후 상태 업데이트
