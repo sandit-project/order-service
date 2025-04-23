@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "userClient", url = "http://localhost:9002")
+@FeignClient(name = "userClient", url = "http://localhost:9002", fallback = UserClientFallback.class)
 public interface UserClient {
 
     @GetMapping("/auths/users/{userUid}")
