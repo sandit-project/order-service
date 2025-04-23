@@ -1,11 +1,11 @@
 package com.example.orderservice.user;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import static com.example.orderservice.order.service.OrderService.log;
-
+@Slf4j
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor

@@ -14,12 +14,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
+    private final TransactionalOperator txOp;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -46,109 +49,146 @@ public class OrderService {
         return orderRepository.findByUserUid(userUid);
     }
 
-    public Flux<Order> submitOrder(OrderRequestDTO orderRequestDTO) {
-
-        // 예약 시간이 기본값(페이지 로드시 입력된 값)과 현재 시각의 차이가 5분 미만이면 null 처리
-        LocalDateTime reservationDate = orderRequestDTO.getReservationDate();
-        if (reservationDate != null) {
-            LocalDateTime nowTruncated = getNow().truncatedTo(ChronoUnit.MINUTES);
-            LocalDateTime inputTruncated = reservationDate.truncatedTo(ChronoUnit.MINUTES);
-            // 만약 차이가 5분 미만이면 기본값으로 간주
-            if (Duration.between(inputTruncated, nowTruncated).abs().toMinutes() < 5) {
-                reservationDate = null;
-            }
-        }
-
-        LocalDateTime finalReservationDate = reservationDate;
-
-        OrderStatus orderStatus = orderRequestDTO.isPaymentSuccess()
-                ? OrderStatus.PAYMENT_COMPLETED
-                : OrderStatus.PAYMENT_CANCELLED;
-
-        return Flux.fromIterable(orderRequestDTO.getItems())
+    public Flux<Order> submitOrder(OrderRequestDTO dto) {
+        // 1) Flux 정의 (기존 로직 그대로)
+        Flux<Order> creates = Flux.fromIterable(dto.getItems())
                 .flatMap(item -> cartRepository.findById(item.cartUid())
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 카트: " + item.cartUid())))
-                        .flatMap(cart -> {
-                            Order order = Order.builder()
-                                    .userUid(orderRequestDTO.getUserUid())
-                                    .storeUid(orderRequestDTO.getStoreUid())
+                        .map(cart -> {
+                            // 예약시간 5분 기준 처리
+                            LocalDateTime resv = dto.getReservationDate();
+                            if (resv != null && Duration.between(resv.truncatedTo(ChronoUnit.MINUTES),
+                                            getNow().truncatedTo(ChronoUnit.MINUTES))
+                                    .abs().toMinutes() < 5) {
+                                resv = null;
+                            }
+                            return Order.builder()
+                                    .userUid(dto.getUserUid())
+                                    .storeUid(dto.getStoreUid())
+                                    .merchantUid(dto.getMerchantUid())
                                     .menuName(cart.menuName())
                                     .amount(cart.amount())
                                     .price(cart.price())
                                     .calorie(cart.calorie())
-                                    .payment(orderRequestDTO.getPayment())
-                                    .merchantUid(orderRequestDTO.getMerchantUid())
-                                    .status(orderStatus)
-                                    .reservationDate(finalReservationDate)
+                                    .payment(dto.getPayment())
+                                    .status(dto.isPaymentSuccess()
+                                            ? OrderStatus.PAYMENT_COMPLETED
+                                            : OrderStatus.PAYMENT_CANCELLED)
+                                    .reservationDate(resv)
                                     .build();
-                            return orderRepository.save(order);
                         })
+                        .flatMap(orderRepository::save)  // save() 시 @Version 체크
                 );
+
+        // 2) 트랜잭션으로 감싸기 → 실패 시 롤백
+        return txOp.execute(status -> creates);
     }
 
 
     // 결제 사전 검증
-    public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO request) {
-
-        // 예약 시간이 기본값(현재 시각)과 5분 내로 차이나는 지 확인 후 null 처리
-        LocalDateTime reservationTime = request.getReservationDate();
-        if (reservationTime != null) {
-            LocalDateTime nowTruncated = getNow().truncatedTo(ChronoUnit.MINUTES);
-            LocalDateTime inputTruncated = reservationTime.truncatedTo(ChronoUnit.MINUTES);
-            if (Duration.between(inputTruncated, nowTruncated).abs().toMinutes() < 5) {
-                reservationTime = null;
-            }
-        }
-
-        Order order = Order.builder()
-                .merchantUid(request.getMerchantUid())
-                .storeUid(request.getStoreUid())
-                .menuName(request.getMenuName())
+    public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO req) {
+        // 사전 검증용 주문 객체 생성
+        Order toSave = Order.builder()
+                .merchantUid(req.getMerchantUid())
+                .storeUid(req.getStoreUid())
+                .menuName(req.getMenuName())
                 .amount(1)
                 .payment("card")
-                .reservationDate(reservationTime)
                 .status(OrderStatus.ORDER_CREATED)
-                .price(request.getTotalPrice())
+                .price(req.getTotalPrice())
                 .calorie(0.0)
-                .userUid(request.getUserUid())
+                .userUid(req.getUserUid())
+                .reservationDate(req.getReservationDate())
                 .build();
 
-        return orderRepository.save(order)
-                .map(savedOrder -> PreparePaymentResponseDTO.builder()
-                        .merchantUid(savedOrder.merchantUid())
-                        .requestedAmount(savedOrder.price())
+        // 트랜잭션 안에서 저장하고 DTO 로 변환
+        return txOp.execute(tx -> orderRepository.save(toSave))
+                .single()
+                .map(saved -> PreparePaymentResponseDTO.builder()
+                        .merchantUid(saved.merchantUid())
+                        .requestedAmount(saved.price())
                         .message("사전 검증 및 저장 완료")
-                        .build());
+                        .build()
+                );
     }
 
     //결제 성공 후 상태 업데이트
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
-        return orderRepository.findByMerchantUid(merchantUid)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
-                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_COMPLETED.name()))
-                .then();
+        return txOp.execute(tx ->
+                orderRepository.findByMerchantUid(merchantUid)
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                        .flatMap(orig -> {
+                            // 기존 데이터에서 버전을 유지하며 status 만 변경
+                            Order updated = Order.builder()
+                                    .uid(orig.uid())
+                                    .userUid(orig.userUid())
+                                    .storeUid(orig.storeUid())
+                                    .merchantUid(orig.merchantUid())
+                                    .menuName(orig.menuName())
+                                    .amount(orig.amount())
+                                    .price(orig.price())
+                                    .calorie(orig.calorie())
+                                    .payment(orig.payment())
+                                    .status(OrderStatus.PAYMENT_COMPLETED)
+                                    .createdDate(orig.createdDate())
+                                    .reservationDate(orig.reservationDate())
+                                    .version(orig.version())
+                                    .build();
+                            return orderRepository.save(updated);
+                        })
+        ).then();
     }
 
     //결제 실패 후 상태 업데이트
     public Mono<Void> updateOrderStatusToFailed(String merchantUid) {
-        return orderRepository.findByMerchantUid(merchantUid)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
-                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_FAILED.name()))
-                .then();
+        return txOp.execute(tx ->
+                orderRepository.findByMerchantUid(merchantUid)
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                        .flatMap(orig -> {
+                            Order updated = Order.builder()
+                                    .uid(orig.uid())
+                                    .userUid(orig.userUid())
+                                    .storeUid(orig.storeUid())
+                                    .merchantUid(orig.merchantUid())
+                                    .menuName(orig.menuName())
+                                    .amount(orig.amount())
+                                    .price(orig.price())
+                                    .calorie(orig.calorie())
+                                    .payment(orig.payment())
+                                    .status(OrderStatus.PAYMENT_FAILED)
+                                    .createdDate(orig.createdDate())
+                                    .reservationDate(orig.reservationDate())
+                                    .version(orig.version())
+                                    .build();
+                            return orderRepository.save(updated);
+                        })
+        ).then();
     }
 
     //결제 취소 후 상태 업데이트
     public Mono<Void> updateOrderStatusToCancelled(String merchantUid) {
-        return orderRepository.findByMerchantUid(merchantUid)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
-                .flatMap(order -> orderRepository.updateOrderStatus(order.uid(), OrderStatus.PAYMENT_CANCELLED.name()))
-                .then();
+        return txOp.execute(tx ->
+                orderRepository.findByMerchantUid(merchantUid)
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+                        .flatMap(orig -> {
+                            Order updated = Order.builder()
+                                    .uid(orig.uid())
+                                    .userUid(orig.userUid())
+                                    .storeUid(orig.storeUid())
+                                    .merchantUid(orig.merchantUid())
+                                    .menuName(orig.menuName())
+                                    .amount(orig.amount())
+                                    .price(orig.price())
+                                    .calorie(orig.calorie())
+                                    .payment(orig.payment())
+                                    .status(OrderStatus.PAYMENT_CANCELLED)
+                                    .createdDate(orig.createdDate())
+                                    .reservationDate(orig.reservationDate())
+                                    .version(orig.version())
+                                    .build();
+                            return orderRepository.save(updated);
+                        })
+        ).then();
     }
-
-
-
-
-
-
 
 }

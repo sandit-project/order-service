@@ -10,9 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @RestController
@@ -126,6 +123,15 @@ public class OrderController {
                 .thenReturn(OrderResponseDTO.builder()
                         .success(false)
                         .message("주문 실패!")
+                        .build());
+    }
+
+    @PostMapping("/update-cancelled")
+    public Mono<OrderResponseDTO> updateOrderStatusCancelled(@RequestBody UpdateOrderStatusRequest request) {
+        return orderService.updateOrderStatusToCancelled(request.getMerchantUid())
+                .thenReturn(OrderResponseDTO.builder()
+                        .success(false)
+                        .message("결제 취소!")
                         .build());
     }
 
