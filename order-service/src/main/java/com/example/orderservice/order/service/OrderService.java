@@ -73,7 +73,7 @@ public class OrderService {
                                     .payment(dto.getPayment())
                                     .status(dto.isPaymentSuccess()
                                             ? OrderStatus.PAYMENT_COMPLETED
-                                            : OrderStatus.PAYMENT_CANCELLED)
+                                            : OrderStatus.PAYMENT_FAILED)
                                     .reservationDate(resv)
                                     .build();
                         })

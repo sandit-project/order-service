@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 public record CookingComplitedMessage (
         Integer uid,
+        Integer userUid,
+        Integer socialUid,
         LocalDateTime createdDate,
         LocalDateTime cookedDate,
         OrderStatus status

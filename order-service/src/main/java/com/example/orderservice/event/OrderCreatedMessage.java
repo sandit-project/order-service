@@ -2,7 +2,12 @@ package com.example.orderservice.event;
 
 import com.example.orderservice.order.domain.OrderStatus;
 
+import java.time.LocalDateTime;
+
 public record OrderCreatedMessage(
         Integer uid,
-        OrderStatus status){
+        Integer userUid,
+        Integer socialUid,
+        OrderStatus status,
+        LocalDateTime createdDate){
 }
