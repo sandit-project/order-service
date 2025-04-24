@@ -108,7 +108,7 @@ public class OrderService {
                 .price(req.getTotalPrice())
                 .calorie(0.0)
                 .userUid(req.getUserUid())
-                .reservationDate(reservationTime)   // 여기!
+                .reservationDate(reservationTime)
                 .build();
 
         // 3) 트랜잭션 안에서 저장하고 DTO 로 변환
@@ -165,32 +165,6 @@ public class OrderService {
                                     .calorie(orig.calorie())
                                     .payment(orig.payment())
                                     .status(OrderStatus.PAYMENT_FAILED)
-                                    .createdDate(orig.createdDate())
-                                    .reservationDate(orig.reservationDate())
-                                    .version(orig.version())
-                                    .build();
-                            return orderRepository.save(updated);
-                        })
-        ).then();
-    }
-
-    //결제 취소 후 상태 업데이트
-    public Mono<Void> updateOrderStatusToCancelled(String merchantUid) {
-        return txOp.execute(tx ->
-                orderRepository.findByMerchantUid(merchantUid)
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
-                        .flatMap(orig -> {
-                            Order updated = Order.builder()
-                                    .uid(orig.uid())
-                                    .userUid(orig.userUid())
-                                    .storeUid(orig.storeUid())
-                                    .merchantUid(orig.merchantUid())
-                                    .menuName(orig.menuName())
-                                    .amount(orig.amount())
-                                    .price(orig.price())
-                                    .calorie(orig.calorie())
-                                    .payment(orig.payment())
-                                    .status(OrderStatus.PAYMENT_CANCELLED)
                                     .createdDate(orig.createdDate())
                                     .reservationDate(orig.reservationDate())
                                     .version(orig.version())

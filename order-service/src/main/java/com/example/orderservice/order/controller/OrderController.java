@@ -126,14 +126,14 @@ public class OrderController {
                         .build());
     }
 
-    @PostMapping("/update-cancelled")
-    public Mono<OrderResponseDTO> updateOrderStatusCancelled(@RequestBody UpdateOrderStatusRequest request) {
-        return orderService.updateOrderStatusToCancelled(request.getMerchantUid())
-                .thenReturn(OrderResponseDTO.builder()
-                        .success(false)
-                        .message("결제 취소!")
-                        .build());
-    }
+//    @PostMapping("/update-cancelled")
+//    public Mono<OrderResponseDTO> updateOrderStatusCancelled(@RequestBody UpdateOrderStatusRequest request) {
+//        return orderService.updateOrderStatusToCancelled(request.getMerchantUid())
+//                .thenReturn(OrderResponseDTO.builder()
+//                        .success(false)
+//                        .message("결제 취소!")
+//                        .build());
+//    }
 
 }
 
