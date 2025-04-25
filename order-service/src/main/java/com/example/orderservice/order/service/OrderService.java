@@ -2,10 +2,7 @@ package com.example.orderservice.order.service;
 
 import com.example.orderservice.cart.CartRepository;
 import com.example.orderservice.cart.CartService;
-import com.example.orderservice.order.domain.Order;
-import com.example.orderservice.order.domain.OrderRepository;
-import com.example.orderservice.order.domain.OrderRequestDTO;
-import com.example.orderservice.order.domain.OrderStatus;
+import com.example.orderservice.order.domain.*;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +28,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final TransactionalOperator txOp;
+    private final DeliveryAddressRepository deliveryAddressRepository;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -49,7 +47,7 @@ public class OrderService {
         return orderRepository.findByUserUid(userUid);
     }
 
-    public Flux<Order> submitOrder(OrderRequestDTO dto) {
+    public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
         // 1) Flux 정의 (기존 로직 그대로)
         Flux<Order> creates = Flux.fromIterable(dto.getItems())
                 .flatMap(item -> cartRepository.findById(item.cartUid())
@@ -81,7 +79,50 @@ public class OrderService {
                 );
 
         // 2) 트랜잭션으로 감싸기 → 실패 시 롤백
-        return txOp.execute(status -> creates);
+        return txOp.execute(tx -> creates.collectList())
+                .flatMap(orders -> {
+                            if (orders.isEmpty()) {
+                                return Mono.just(
+                                        OrderResponseDTO.builder()
+                                                .success(false)
+                                                .message("주문 저장 실패")
+                                                .build()
+                                );
+                            }
+
+                            Integer orderUid = orders.get(0).uid();
+
+                    DeliveryAddress addr = new DeliveryAddress(
+                            null,
+                            dto.getUserUid(),
+                            dto.getSocialUid(),
+                            dto.getMerchantUid(),
+                            dto.getAddressStart(),
+                            dto.getAddressStartLat(),
+                            dto.getAddressStartLan(),
+                            dto.getAddressDestination(),
+                            dto.getAddressDestinationLat(),
+                            dto.getAddressDestinationLan()
+                    );
+
+                    return deliveryAddressRepository.save(addr)
+                            .thenReturn(
+                                    OrderResponseDTO.builder()
+                                            .success(true)
+                                            .message("주문 및 배송주소 저장 완료")
+                                            .orderUid(orderUid)
+                                            .build()
+                            );
+                })
+                .single()
+                .onErrorResume(e ->
+                        Mono.just(
+                                OrderResponseDTO.builder()
+                                        .success(false)
+                                        .message("서버 에러: " + e.getMessage())
+                                        .build()
+                        )
+                );
     }
 
 

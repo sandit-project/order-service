@@ -8,4 +8,5 @@ import lombok.Getter;
 public class OrderResponseDTO {
     private boolean success;
     private String message;
+    private Integer orderUid;
 }

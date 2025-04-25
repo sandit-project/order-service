@@ -7,7 +7,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class CustomOrderRequestDTO {
-
+        private Integer uid;
         @NotNull(message = "bread must be defined")
         private Integer bread;
         @NotNull(message = "material 1 must be defined")

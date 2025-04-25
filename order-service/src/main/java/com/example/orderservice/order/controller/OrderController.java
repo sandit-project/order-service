@@ -49,34 +49,7 @@ public class OrderController {
 
     @PostMapping
     public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
-
-        return orderService.submitOrder(orderRequestDTO)
-                .collectList()
-                .map(orders -> {
-                    if (orders.isEmpty()) {
-                        // 주문이 저장되지 않은 경우 => 실패 응답
-                        return OrderResponseDTO.builder()
-                                .success(false)
-                                .message("주문 저장 실패")
-                                .build();
-                    } else {
-                        // 주문이 저장된 경우 => 성공 응답
-                        return OrderResponseDTO.builder()
-                                .success(true)
-                                .message("주문이 성공적으로 저장되었습니다. 총 " + orders.size() + "건")
-                                .build();
-                    }
-                })
-                .onErrorResume(error -> {
-                    // 진짜 시스템 에러 (DB 터지거나 서버 터진 경우)
-                    return Mono.just(
-                            OrderResponseDTO.builder()
-                                    .success(false)
-                                    .message("서버 에러: " + error.getMessage())
-                                    .build()
-                    );
-                });
-
+        return orderService.submitOrder(orderRequestDTO);
     }
 
     //주문 상세 정보
@@ -125,15 +98,6 @@ public class OrderController {
                         .message("주문 실패!")
                         .build());
     }
-
-//    @PostMapping("/update-cancelled")
-//    public Mono<OrderResponseDTO> updateOrderStatusCancelled(@RequestBody UpdateOrderStatusRequest request) {
-//        return orderService.updateOrderStatusToCancelled(request.getMerchantUid())
-//                .thenReturn(OrderResponseDTO.builder()
-//                        .success(false)
-//                        .message("결제 취소!")
-//                        .build());
-//    }
 
 }
 

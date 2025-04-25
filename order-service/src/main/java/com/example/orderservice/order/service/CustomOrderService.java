@@ -21,80 +21,92 @@ public class CustomOrderService {
         return customOrderRepository.findById(uid);
     }
 
-    public Mono<OrderResponseDTO> submitCustomOrder(CustomOrderRequestDTO customOrderRequestDTO) {
-        // 필수 값 검증
-        if (isNull(customOrderRequestDTO.getBread()) ||
-                isNull(customOrderRequestDTO.getMaterial1()) ||
-                isNull(customOrderRequestDTO.getVegetable1()) ||
-                isNull(customOrderRequestDTO.getSauce1())) {
-
+    public Mono<OrderResponseDTO> submitCustomOption(CustomOrderRequestDTO dto) {
+        // 필수 검증
+        if (dto.getBread() == null
+                || dto.getMaterial1() == null
+                || dto.getVegetable1() == null
+                || dto.getSauce1() == null) {
             return Mono.just(OrderResponseDTO.builder()
                     .success(false)
-                    .message("필수 커스텀 정보 누락: bread, material1, vegetable1, sauce1은 필수입니다.")
+                    .message("필수 옵션(bread, material1, vegetable1, sauce1) 누락")
                     .build());
         }
 
-        // 오직 커스텀 옵션만 저장
-        CustomOrder customOrder = CustomOrder.builder()
-                // 여기서는 최종 주문이 생성되기 전이므로 uid는 아직 할당되지 않음 (null 처리)
-                .uid(null)
-                .bread(customOrderRequestDTO.getBread())
-                .material1(customOrderRequestDTO.getMaterial1())
-                .material2(customOrderRequestDTO.getMaterial2())
-                .material3(customOrderRequestDTO.getMaterial3())
-                .cheese(customOrderRequestDTO.getCheese())
-                .vegetable1(customOrderRequestDTO.getVegetable1())
-                .vegetable2(customOrderRequestDTO.getVegetable2())
-                .vegetable3(customOrderRequestDTO.getVegetable3())
-                .vegetable4(customOrderRequestDTO.getVegetable4())
-                .vegetable5(customOrderRequestDTO.getVegetable5())
-                .vegetable6(customOrderRequestDTO.getVegetable6())
-                .vegetable7(customOrderRequestDTO.getVegetable7())
-                .vegetable8(customOrderRequestDTO.getVegetable8())
-                .sauce1(customOrderRequestDTO.getSauce1())
-                .sauce2(customOrderRequestDTO.getSauce2())
-                .sauce3(customOrderRequestDTO.getSauce3())
-                .build();
-
-        // 커스텀 옵션만 저장하고, 저장 성공 시 "담기 완료" 메시지 반환
-        return customOrderRepository.save(customOrder)
-                .thenReturn(OrderResponseDTO.builder()
+        // save → customOptionUid 리턴
+        return customOrderRepository.save(CustomOrder.from(dto))
+                .map(savedOpt -> OrderResponseDTO.builder()
                         .success(true)
-                        .message("커스텀 주문 옵션 저장 성공. (추후 주문 생성 시 연동 필요)")
-                        .build());
+                        .message("커스텀 옵션 저장 완료")
+                        .orderUid(savedOpt.uid())   // customOptionUid 용으로 사용
+                        .build()
+                );
+    }
+
+    /** 2. 최종 주문 + 옵션 연동 */
+    public Mono<OrderResponseDTO> submitFinalOrder(FinalCustomOrderRequest finalReq) {
+        return orderService.submitOrder(finalReq.getOrderRequestDTO())
+                .flatMap(orderResp -> {
+                    // 주문 자체가 실패했다면 바로 실패 DTO 리턴
+                    if (!orderResp.isSuccess()) {
+                        return Mono.just(orderResp);
+                    }
+
+                    Integer customOptionUid = finalReq
+                            .getCustomOrderRequestDTO()
+                            .getUid();
+                    if (customOptionUid == null) {
+                        return Mono.just(OrderResponseDTO.builder()
+                                .success(false)
+                                .message("커스텀 옵션 UID 누락")
+                                .build());
+                    }
+
+                    // 옵션 테이블에서 프리뷰 레코드 찾아서 → 주문 PK로 uid 덮어쓰기 → save
+                    return customOrderRepository.findById(customOptionUid)
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("저장된 옵션을 찾을 수 없습니다")))
+                            .flatMap(opt -> {
+                                // 주문 PK(orderUid)를 custom_order.uid 로 사용
+                                return customOrderRepository.save(
+                                        CustomOrder.builder()
+                                                .uid(orderResp.getOrderUid())   // orders.uid 와 동일하게 덮어쓰기
+                                                .bread(opt.bread())
+                                                .material1(opt.material1())
+                                                .material2(opt.material2())
+                                                .material3(opt.material3())
+                                                .cheese(opt.cheese())
+                                                .vegetable1(opt.vegetable1())
+                                                .vegetable2(opt.vegetable2())
+                                                .vegetable3(opt.vegetable3())
+                                                .vegetable4(opt.vegetable4())
+                                                .vegetable5(opt.vegetable5())
+                                                .vegetable6(opt.vegetable6())
+                                                .vegetable7(opt.vegetable7())
+                                                .vegetable8(opt.vegetable8())
+                                                .sauce1(opt.sauce1())
+                                                .sauce2(opt.sauce2())
+                                                .sauce3(opt.sauce3())
+                                                .version(opt.version())
+                                                .build()
+                                );
+                            })
+                            .thenReturn(OrderResponseDTO.builder()
+                                    .success(true)
+                                    .message("커스텀 주문 완료")
+                                    .orderUid(orderResp.getOrderUid()) // 최종 주문 PK
+                                    .build()
+                            );
+                })
+                .onErrorResume(e -> Mono.just(
+                        OrderResponseDTO.builder()
+                                .success(false)
+                                .message("최종 주문 실패: " + e.getMessage())
+                                .build()
+                ));
     }
 
     private boolean isNull(Integer value) {
         return value == null;
-    }
-
-    public Mono<OrderResponseDTO> linkCustomOrder(Integer orderUid, CustomOrderRequestDTO customOrderRequestDTO) {
-        // Order와 연동
-        CustomOrder customOrder = CustomOrder.builder()
-                .uid(orderUid)  // 최종 주문 생성 시점에 생성된 orders.uid를 사용
-                .bread(customOrderRequestDTO.getBread())
-                .material1(customOrderRequestDTO.getMaterial1())
-                .material2(customOrderRequestDTO.getMaterial2())
-                .material3(customOrderRequestDTO.getMaterial3())
-                .cheese(customOrderRequestDTO.getCheese())
-                .vegetable1(customOrderRequestDTO.getVegetable1())
-                .vegetable2(customOrderRequestDTO.getVegetable2())
-                .vegetable3(customOrderRequestDTO.getVegetable3())
-                .vegetable4(customOrderRequestDTO.getVegetable4())
-                .vegetable5(customOrderRequestDTO.getVegetable5())
-                .vegetable6(customOrderRequestDTO.getVegetable6())
-                .vegetable7(customOrderRequestDTO.getVegetable7())
-                .vegetable8(customOrderRequestDTO.getVegetable8())
-                .sauce1(customOrderRequestDTO.getSauce1())
-                .sauce2(customOrderRequestDTO.getSauce2())
-                .sauce3(customOrderRequestDTO.getSauce3())
-                .build();
-
-        return customOrderRepository.save(customOrder)
-                .thenReturn(OrderResponseDTO.builder()
-                        .success(true)
-                        .message("커스텀 주문 옵션 연동 성공")
-                        .build());
     }
 
 }

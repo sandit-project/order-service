@@ -25,6 +25,12 @@ public class OrderRequestDTO {
         @NotEmpty(message = "You must order at least 1 item.")
         @Valid
         private List<CartItem> items;
+        private String addressStart;
+        private double addressStartLat;
+        private double addressStartLan;
+        private String addressDestination;
+        private double addressDestinationLat;
+        private double addressDestinationLan;
         @NotBlank(message = "payment must be defined")
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
