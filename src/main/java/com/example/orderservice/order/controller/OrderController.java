@@ -1,6 +1,7 @@
 package com.example.orderservice.order.controller;
 
 import com.example.orderservice.order.domain.*;
+import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.service.OrderService;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/orders")
@@ -63,23 +65,23 @@ public class OrderController {
 
         List<CartItem> items = orders.stream()
                 .map(order -> new CartItem(
-                        order.uid(),
-                        order.menuName(),
-                        order.amount(),
-                        order.price(),
-                        order.calorie()
+                        order.getUid(),
+                        order.getMenuName(),
+                        order.getAmount(),
+                        order.getPrice(),
+                        order.getCalorie()
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
         return OrderDetailResponseDTO.builder()
-                .uid(firstOrder.uid())
-                .userUid(firstOrder.userUid())
+                .uid(firstOrder.getUid())
+                .userUid(firstOrder.getUserUid())
                 .items(items)
-                .merchantUid(firstOrder.merchantUid())
-                .payment(firstOrder.payment())
-                .status(firstOrder.status().name())
-                .createdDate(firstOrder.createdDate())
-                .reservationDate(firstOrder.reservationDate())
+                .merchantUid(firstOrder.getMerchantUid())
+                .payment(firstOrder.getPayment())
+                .status(firstOrder.getStatus())
+                .createdDate(firstOrder.getCreatedDate())
+                .reservationDate(firstOrder.getReservationDate())
                 .build();
     }
 

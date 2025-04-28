@@ -1,5 +1,6 @@
 package com.example.orderservice.order.domain;
 
+import com.example.orderservice.order.model.DeliveryAddress;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;

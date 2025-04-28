@@ -3,7 +3,7 @@ package com.example.orderservice.order.service;
 import com.example.orderservice.cart.Cart;
 import com.example.orderservice.cart.CartRepository;
 import com.example.orderservice.order.domain.CartItem;
-import com.example.orderservice.order.domain.Order;
+import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.domain.OrderRepository;
 import com.example.orderservice.order.domain.OrderRequestDTO;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
@@ -21,7 +21,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
