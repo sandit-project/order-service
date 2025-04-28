@@ -49,6 +49,7 @@ public class OrderController {
 
     @PostMapping
     public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
+        log.info("orderRequestDTO: {}", orderRequestDTO);
         return orderService.submitOrder(orderRequestDTO);
     }
 
@@ -74,6 +75,7 @@ public class OrderController {
                 .uid(firstOrder.uid())
                 .userUid(firstOrder.userUid())
                 .items(items)
+                .merchantUid(firstOrder.merchantUid())
                 .payment(firstOrder.payment())
                 .status(firstOrder.status().name())
                 .createdDate(firstOrder.createdDate())

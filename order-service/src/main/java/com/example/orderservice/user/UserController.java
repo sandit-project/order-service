@@ -29,17 +29,4 @@ public class UserController {
                         .build());
     }
 
-    //주소 가져오기
-    @GetMapping("/{uid}/address")
-    public Mono<UserInfoResponseDTO> getUserAddresses(@PathVariable Integer uid) {
-        return userService.getUserAddresses(uid);
-    }
-
-    //주소 수정
-    @PutMapping("/{uid}/address")
-    public Mono<UpdateAddressResponse> updateUserAddress(@PathVariable int uid, @RequestBody UpdateAddressRequest request) {
-        log.info("update user address :: {}", request);
-        return userService.updateAddress(uid,request);
-    }
-
 }

@@ -52,18 +52,16 @@ public class CustomOrderService {
                         return Mono.just(orderResp);
                     }
 
-                    Integer customOptionUid = finalReq
-                            .getCustomOrderRequestDTO()
-                            .getUid();
-                    if (customOptionUid == null) {
+                    Integer orderUid = orderResp.getOrderUid();
+                    if (orderUid == null) {
                         return Mono.just(OrderResponseDTO.builder()
                                 .success(false)
-                                .message("커스텀 옵션 UID 누락")
+                                .message("주문 UID 누락")
                                 .build());
                     }
 
                     // 옵션 테이블에서 프리뷰 레코드 찾아서 → 주문 PK로 uid 덮어쓰기 → save
-                    return customOrderRepository.findById(customOptionUid)
+                    return customOrderRepository.findById(orderUid)
                             .switchIfEmpty(Mono.error(new IllegalArgumentException("저장된 옵션을 찾을 수 없습니다")))
                             .flatMap(opt -> {
                                 // 주문 PK(orderUid)를 custom_order.uid 로 사용

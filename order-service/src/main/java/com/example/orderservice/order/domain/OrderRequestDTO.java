@@ -8,12 +8,14 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
 @Builder
+@ToString
 //전체 주문 정보
 public class OrderRequestDTO {
 
@@ -25,12 +27,8 @@ public class OrderRequestDTO {
         @NotEmpty(message = "You must order at least 1 item.")
         @Valid
         private List<CartItem> items;
-        private String addressStart;
-        private double addressStartLat;
-        private double addressStartLan;
-        private String addressDestination;
-        private double addressDestinationLat;
-        private double addressDestinationLan;
+        @Valid
+        private DeliveryAddressDTO deliveryAddress;
         @NotBlank(message = "payment must be defined")
         private String payment;
         @NotBlank(message = "merchantUid must be defined")

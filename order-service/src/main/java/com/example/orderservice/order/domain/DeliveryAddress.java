@@ -1,6 +1,9 @@
 package com.example.orderservice.order.domain;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
@@ -9,29 +12,40 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table("delivery_address")
-public record DeliveryAddress(
+public class DeliveryAddress {
 
         @Id
-        Integer uid,
+        private Long uid;
+
         @Column("user_uid")
-        Integer userUid,
+        private Long userUid;
+
         @Column("social_uid")
-        Integer socialUid,
+        private Long socialUid;
+
         @Column("merchant_uid")
-        String merchantUid,
+        private String merchantUid;
+
         @Column("address_start")
-        String addressStart,
+        private String addressStart;
+
         @Column("address_start_lat")
-        double addressStartlat,
+        private Double addressStartLat;
+
         @Column("address_start_lan")
-        double addressStartlan,
+        private Double addressStartLan;
+
         @Column("address_destination")
-        String addressDestination,
+        private String addressDestination;
+
         @Column("address_destination_lat")
-        double addressDestinationLat,
+        private Double addressDestinationLat;
+
         @Column("address_destination_lan")
-        double addressDestinationLan
-) {
+        private Double addressDestinationLan;
 }

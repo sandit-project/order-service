@@ -48,82 +48,72 @@ public class OrderService {
     }
 
     public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
-        // 1) Flux 정의 (기존 로직 그대로)
-        Flux<Order> creates = Flux.fromIterable(dto.getItems())
-                .flatMap(item -> cartRepository.findById(item.cartUid())
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 카트: " + item.cartUid())))
-                        .map(cart -> {
-                            // 예약시간 5분 기준 처리
+        return Flux.fromIterable(dto.getItems())
+                .flatMap(item -> cartRepository.findById(item.uid())
+                        .doOnNext(c -> log.info("카트 조회 성공: {}", c))
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("유효하지 않은 카트: " + item.uid())))
+                        .flatMap(cart -> {
                             LocalDateTime resv = dto.getReservationDate();
                             if (resv != null && Duration.between(resv.truncatedTo(ChronoUnit.MINUTES),
-                                            getNow().truncatedTo(ChronoUnit.MINUTES))
-                                    .abs().toMinutes() < 5) {
+                                    getNow().truncatedTo(ChronoUnit.MINUTES)).abs().toMinutes() < 5) {
                                 resv = null;
                             }
-                            return Order.builder()
+                            Order order = Order.builder()
                                     .userUid(dto.getUserUid())
+                                    .socialUid(dto.getSocialUid())
                                     .storeUid(dto.getStoreUid())
                                     .merchantUid(dto.getMerchantUid())
                                     .menuName(cart.menuName())
-                                    .amount(cart.amount())
-                                    .price(cart.price())
+                                    .amount(item.amount())
+                                    .price(item.unitPrice())
                                     .calorie(cart.calorie())
                                     .payment(dto.getPayment())
-                                    .status(dto.isPaymentSuccess()
-                                            ? OrderStatus.PAYMENT_COMPLETED
-                                            : OrderStatus.PAYMENT_FAILED)
+                                    .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
                                     .reservationDate(resv)
                                     .build();
+                            return orderRepository.save(order)
+                                    .doOnNext(o -> log.info("주문 저장 성공: {}", o));
                         })
-                        .flatMap(orderRepository::save)  // save() 시 @Version 체크
-                );
-
-        // 2) 트랜잭션으로 감싸기 → 실패 시 롤백
-        return txOp.execute(tx -> creates.collectList())
+                )
+                .collectList()
                 .flatMap(orders -> {
-                            if (orders.isEmpty()) {
-                                return Mono.just(
-                                        OrderResponseDTO.builder()
-                                                .success(false)
-                                                .message("주문 저장 실패")
-                                                .build()
-                                );
-                            }
+                    log.info("진입함: 총 저장된 주문 개수 = {}", orders.size());
+                    if (orders.isEmpty()) {
+                        return Mono.error(new RuntimeException("주문 저장 실패"));
+                    }
+                    Order first = orders.get(0);
+                    DeliveryAddressDTO addrDto = dto.getDeliveryAddress();
+                    DeliveryAddress address = DeliveryAddress.builder()
+                            .userUid(dto.getUserUid() != null ? dto.getUserUid().longValue() : null)
+                            .socialUid(dto.getSocialUid() != null ? dto.getSocialUid().longValue() : null)
+                            .merchantUid(first.merchantUid())
+                            .addressStart(addrDto.getAddressStart())
+                            .addressStartLat(addrDto.getAddressStartLat())
+                            .addressStartLan(addrDto.getAddressStartLan())
+                            .addressDestination(addrDto.getAddressDestination())
+                            .addressDestinationLat(addrDto.getAddressDestinationLat())
+                            .addressDestinationLan(addrDto.getAddressDestinationLan())
+                            .build();
 
-                            Integer orderUid = orders.get(0).uid();
-
-                    DeliveryAddress addr = new DeliveryAddress(
-                            null,
-                            dto.getUserUid(),
-                            dto.getSocialUid(),
-                            dto.getMerchantUid(),
-                            dto.getAddressStart(),
-                            dto.getAddressStartLat(),
-                            dto.getAddressStartLan(),
-                            dto.getAddressDestination(),
-                            dto.getAddressDestinationLat(),
-                            dto.getAddressDestinationLan()
-                    );
-
-                    return deliveryAddressRepository.save(addr)
-                            .thenReturn(
-                                    OrderResponseDTO.builder()
-                                            .success(true)
-                                            .message("주문 및 배송주소 저장 완료")
-                                            .orderUid(orderUid)
-                                            .build()
-                            );
+                    return deliveryAddressRepository.save(address)
+                            .doOnSuccess(a -> log.info("배송주소 저장 성공: {}", a))
+                            .doOnError(e -> log.error("배송주소 저장 실패: ", e))
+                            .thenReturn(OrderResponseDTO.builder()
+                                    .success(true)
+                                    .message("주문 및 배송주소 저장 완료")
+                                    .orderUid(first.uid())
+                                    .build());
                 })
-                .single()
-                .onErrorResume(e ->
-                        Mono.just(
-                                OrderResponseDTO.builder()
-                                        .success(false)
-                                        .message("서버 에러: " + e.getMessage())
-                                        .build()
-                        )
-                );
+                .as(txOp::transactional)
+                .onErrorResume(e -> Mono.just(
+                        OrderResponseDTO.builder()
+                                .success(false)
+                                .message("서버 에러: " + e.getMessage())
+                                .build()
+                ));
     }
+
+
 
 
     // 결제 사전 검증

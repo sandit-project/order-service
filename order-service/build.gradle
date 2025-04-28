@@ -82,7 +82,9 @@ dependencies {
     // AWS SDK SQS 모듈 (버전은 필요에 따라 조정)
     implementation 'com.amazonaws:aws-java-sdk-sqs:1.12.546'
     implementation 'com.github.iamport:iamport-rest-client-java:0.2.23'
-
+    //HS512 JWT 를 검증
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     runtimeOnly 'io.asyncer:r2dbc-mysql'

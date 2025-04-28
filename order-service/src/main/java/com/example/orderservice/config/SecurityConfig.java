@@ -1,15 +1,25 @@
 package com.example.orderservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
+
+    @Value("${jwt.shared-secret}")
+    private String jwtSecret;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -23,7 +33,19 @@ public class SecurityConfig {
                         .anyExchange().authenticated()
                 )
 
-                .httpBasic(Customizer.withDefaults());
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                );
         return http.build();
+    }
+
+    @Bean
+    public ReactiveJwtDecoder reactiveJwtDecoder() {
+        // Base64 문자열을 실제 키 바이트로 디코딩
+        byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
+        SecretKeySpec key = new SecretKeySpec(keyBytes, "HmacSHA512");
+        return NimbusReactiveJwtDecoder.withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS512)
+                .build();
     }
 }
