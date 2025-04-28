@@ -13,6 +13,7 @@ public class OrderDetailResponseDTO {
     private Integer uid;
     private Integer userUid;
     private Integer storeUid;
+    private String merchantUid;
     private List<CartItem> items;
     private String payment;
     private String status;
