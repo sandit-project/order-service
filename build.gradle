@@ -76,6 +76,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.cloud:spring-cloud-stream'
+    implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
+
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     // Amazon SQS 메시징을 위한 의존성 추가
     implementation 'io.awspring.cloud:spring-cloud-aws-messaging'

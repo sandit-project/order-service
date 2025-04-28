@@ -21,6 +21,9 @@ public class Order {
         @Column("user_uid")
         private Integer userUid;
 
+        @Column("social_uid")
+        private Integer socialUid;
+
         @Column("store_uid")
         private Integer storeUid;
 

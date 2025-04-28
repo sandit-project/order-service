@@ -1,6 +1,8 @@
 package com.example.orderservice.order.service;
 
-import com.example.orderservice.cart.CartRepository;
+import com.example.orderservice.event.DeliveryAddressMessage;
+import com.example.orderservice.event.OrderCreatedMessage;
+import com.example.orderservice.event.OrderItemMessage;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
@@ -9,6 +11,8 @@ import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
@@ -17,6 +21,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +29,51 @@ public class OrderService {
     private final static Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private final OrderRepository orderRepository;
-    private final CartRepository cartRepository;
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
+    private final StreamBridge streamBridge;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
         return LocalDateTime.now();
+    }
+
+    public void publishOrderCreatedEvent(List<Order> orders, DeliveryAddress address) {
+        if (orders == null || orders.isEmpty()) {
+            throw new IllegalArgumentException("orders 비어있음");
+        }
+
+        Order first = orders.get(0);
+
+        List<OrderItemMessage> itemMessages = orders.stream()
+                .filter(order -> order.getVersion() == 0)
+                .map(order -> new OrderItemMessage(
+                        order.getMenuName(),
+                        order.getAmount(),
+                        order.getPrice(),
+                        order.getVersion()
+                ))
+                .toList();
+
+        OrderCreatedMessage message = new OrderCreatedMessage(
+                first.getMerchantUid(),
+                first.getUserUid(),
+                first.getSocialUid(),
+                first.getStoreUid(),
+                new DeliveryAddressMessage(
+                        address.getAddressStart(),
+                        address.getAddressStartLat(),
+                        address.getAddressStartLan(),
+                        address.getAddressDestination(),
+                        address.getAddressDestinationLat(),
+                        address.getAddressDestinationLan()
+                ),
+                itemMessages,
+                OrderStatus.valueOf(first.getStatus()),
+                first.getCreatedDate()
+        );
+
+        streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(message).build());
     }
 
     public Flux<Order> findAllOrders() {
@@ -45,11 +88,52 @@ public class OrderService {
         return orderRepository.findByUserUid(userUid);
     }
 
+    //RabbitMQ 메시지 받아서 주문 저장
+    public Mono<Void> saveOrderFromMessage(OrderCreatedMessage message) {
+        List<Order> ordersToSave = message.items().stream()
+                .filter(item -> item.version() == 0) // 버전 0인 것만 저장
+                .map(item -> Order.builder()
+                        .userUid(message.userUid())
+                        .socialUid(message.socialUid())
+                        .storeUid(message.storeUid())
+                        .merchantUid(message.merchantUid())
+                        .menuName(item.menuName())
+                        .amount(item.amount())
+                        .price(item.unitPrice())
+                        .payment("card")
+                        .status(String.valueOf(message.status()))
+                        .createdDate(message.createdDate())
+                        .reservationDate(null)
+                        .build()
+                )
+                .toList();
+
+        DeliveryAddress address = new DeliveryAddress(
+                null,
+                message.userUid() != null ? Long.valueOf(message.userUid()) : null,
+                message.socialUid() != null ? Long.valueOf(message.socialUid()) : null,
+                message.merchantUid(),
+                message.deliveryAddress().addressStart(),
+                message.deliveryAddress().addressStartLat(),
+                message.deliveryAddress().addressStartLan(),
+                message.deliveryAddress().addressDestination(),
+                message.deliveryAddress().addressDestinationLat(),
+                message.deliveryAddress().addressDestinationLan()
+        );
+
+        return txOp.transactional(
+                orderRepository.saveAll(ordersToSave).then(deliveryAddressRepository.save(address))
+        ).then();
+    }
+
+
+    //프론트 요청으로 주문 저장
     public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
         return txOp.transactional(
                 Flux.fromIterable(dto.getItems())
                         .map(item -> Order.builder()
                                 .userUid(dto.getUserUid())
+                                .socialUid(dto.getSocialUid())
                                 .storeUid(dto.getStoreUid())
                                 .merchantUid(dto.getMerchantUid())
                                 .menuName(item.menuName())     // DTO의 필드를 직접 사용
@@ -87,6 +171,7 @@ public class OrderService {
 
                                             log.info("save address : {}", address);
                                             return deliveryAddressRepository.save(address)
+
                                                     .thenReturn(
                                                             OrderResponseDTO.builder()
                                                                     .success(true)
