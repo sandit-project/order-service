@@ -69,7 +69,8 @@ public class OrderController {
                         order.getMenuName(),
                         order.getAmount(),
                         order.getPrice(),
-                        order.getCalorie()
+                        order.getCalorie(),
+                        order.getVersion()
                 ))
                 .collect(Collectors.toList());
 
@@ -79,7 +80,7 @@ public class OrderController {
                 .items(items)
                 .merchantUid(firstOrder.getMerchantUid())
                 .payment(firstOrder.getPayment())
-                .status(firstOrder.getStatus())
+                .status(String.valueOf(firstOrder.getStatus()))
                 .createdDate(firstOrder.getCreatedDate())
                 .reservationDate(firstOrder.getReservationDate())
                 .build();

@@ -23,4 +23,7 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     @Query("UPDATE `orders` SET status = :status WHERE uid = :uid")
     Mono<Void> updateOrderStatus(@Param("uid") Integer uid, @Param("status") String status);
 
+    @Query("DELETE FROM orders WHERE merchant_uid = :merchantUid AND version = 1")
+    Mono<Void> deleteRepresentativeOrder(String merchantUid);
+
 }

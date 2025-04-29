@@ -1,5 +1,6 @@
 package com.example.orderservice.order.model;
 
+import com.example.orderservice.order.domain.OrderStatus;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
@@ -46,7 +47,7 @@ public class Order {
         private String payment;
 
         @Column("status")
-        private String status; // enum 쓰면 @Enumerated(EnumType.STRING) 붙이든가
+        private OrderStatus status;
 
         @Column("created_date")
         private LocalDateTime createdDate;

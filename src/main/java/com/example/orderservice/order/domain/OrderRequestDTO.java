@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.springframework.data.annotation.Version;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,4 +37,6 @@ public class OrderRequestDTO {
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
         private LocalDateTime reservationDate;
         private boolean paymentSuccess;
+        @Version
+        private int version;
 }

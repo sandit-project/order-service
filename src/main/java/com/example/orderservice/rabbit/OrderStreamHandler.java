@@ -29,21 +29,4 @@ public class OrderStreamHandler {
             return MessageBuilder.withPayload(event).build();
         };
     }
-
-    // 배송 시작 이벤트 수신
-    @Bean
-    public Consumer<OrderDispatchedMessage> dispatchOrder() {
-        return event -> {
-            log.info("[dispatchOrder] 배송 시작 이벤트 수신: {}", event);
-
-            // 배송 시작 후 주문 수락 메시지 발행
-            AcceptOrderMessage acceptOrderMessage = new AcceptOrderMessage(
-                    event.merchantUid(),
-                    "ACCEPTED"
-            );
-
-            log.info("[dispatchOrder] 주문 수락 이벤트 발행: {}", acceptOrderMessage);
-            streamBridge.send("acceptOrder-out-0", MessageBuilder.withPayload(acceptOrderMessage).build());
-        };
-    }
 }
