@@ -25,8 +25,18 @@ public class OrderStreamHandler {
     @Bean
     public Function<OrderCreatedMessage, Message<OrderCreatedMessage>> orderCreated() {
         return event -> {
-            log.info("[orderCreated] 주문 생성 이벤트 발행: {}", event);
-            return MessageBuilder.withPayload(event).build();
+            log.info("[orderCreated] 주문 생성 이벤트 수신: {}", event);
+
+            switch (event.status()) {
+                case PAYMENT_COMPLETED, ORDER_CONFIRMED, ORDER_CANCELLED, ORDER_COOKING, ORDER_DELIVERING, ORDER_DELIVERED -> {
+                    log.info("[orderCreated] 등록 대상 상태, 이벤트 발행: {}", event);
+                    return MessageBuilder.withPayload(event).build();
+                }
+                default -> {
+                    log.warn("[orderCreated] 등록 대상 아님, 발행 스킵: {}", event.status());
+                    return null; // 발행 안 함
+                }
+            }
         };
     }
 }
