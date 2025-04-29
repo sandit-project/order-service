@@ -16,6 +16,7 @@ public class OrderStreamListener {
 
     private final OrderService orderService;
 
+
     @Bean
     public Consumer<OrderCreatedMessage> acceptOrder() {
         return message -> {

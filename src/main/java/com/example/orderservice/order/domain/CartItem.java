@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.data.annotation.Version;
 
 //메뉴 1개의 정보 (프론트랑 통신하는 DTO)
 public record CartItem (
@@ -28,7 +29,11 @@ public record CartItem (
         @JsonProperty("calorie")
         @NotNull(message = "calorie must be defined")
         @Min(value = 1, message = "Calorie at least 1")
-        Double calorie
+        Double calorie,
+
+        @JsonProperty("version")
+        @Version
+        Integer version
 ){
         @JsonCreator
         public CartItem{}

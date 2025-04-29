@@ -2,6 +2,7 @@ package com.example.orderservice.order.domain;
 
 import com.example.orderservice.order.model.Order;
 import feign.Param;
+import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
@@ -20,7 +21,11 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     @Query("SELECT * FROM `orders` WHERE `merchant_uid` = :merchantUid")
     Mono<Order> findByMerchantUid(@Param("merchantUid") String merchantUid);
 
-    @Query("UPDATE `orders` SET status = :status WHERE uid = :uid")
-    Mono<Void> updateOrderStatus(@Param("uid") Integer uid, @Param("status") String status);
+    @Modifying
+    @Query("DELETE FROM orders WHERE merchant_uid = :merchantUid AND (status = :status OR version = 1)")
+    Mono<Void> deletePreOrders(@Param("merchantUid") String merchantUid, @Param("status") OrderStatus status);
+
+    @Query("DELETE FROM orders WHERE merchant_uid = :merchantUid AND version = 1")
+    Mono<Void> deleteRepresentativeOrder(String merchantUid);
 
 }

@@ -38,154 +38,143 @@ public class OrderService {
         return LocalDateTime.now();
     }
 
-    public void publishOrderCreatedEvent(List<Order> orders, DeliveryAddress address) {
-        if (orders == null || orders.isEmpty()) {
-            throw new IllegalArgumentException("orders 비어있음");
-        }
-
-        Order first = orders.get(0);
-
-        List<OrderItemMessage> itemMessages = orders.stream()
-                .filter(order -> order.getVersion() == 0)
-                .map(order -> new OrderItemMessage(
-                        order.getMenuName(),
-                        order.getAmount(),
-                        order.getPrice(),
-                        order.getVersion()
-                ))
-                .toList();
-
-        OrderCreatedMessage message = new OrderCreatedMessage(
-                first.getMerchantUid(),
-                first.getUserUid(),
-                first.getSocialUid(),
-                first.getStoreUid(),
-                new DeliveryAddressMessage(
-                        address.getAddressStart(),
-                        address.getAddressStartLat(),
-                        address.getAddressStartLan(),
-                        address.getAddressDestination(),
-                        address.getAddressDestinationLat(),
-                        address.getAddressDestinationLan()
-                ),
-                itemMessages,
-                OrderStatus.valueOf(first.getStatus()),
-                first.getCreatedDate()
-        );
-
-        streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(message).build());
-    }
-
+    // 모든 주문 조회
     public Flux<Order> findAllOrders() {
         return orderRepository.findAllOrders();
     }
 
+    // uid로 주문 조회 (단건)
     public Mono<Order> getOrderByUid(Integer uid) {
         return orderRepository.findById(uid);
     }
 
+    // 유저 UID로 주문 전체 조회
     public Flux<Order> findAllByUserUid(Integer userUid) {
         return orderRepository.findByUserUid(userUid);
     }
 
     //RabbitMQ 메시지 받아서 주문 저장
     public Mono<Void> saveOrderFromMessage(OrderCreatedMessage message) {
-        List<Order> ordersToSave = message.items().stream()
-                .filter(item -> item.version() == 0) // 버전 0인 것만 저장
-                .map(item -> Order.builder()
-                        .userUid(message.userUid())
-                        .socialUid(message.socialUid())
-                        .storeUid(message.storeUid())
-                        .merchantUid(message.merchantUid())
-                        .menuName(item.menuName())
-                        .amount(item.amount())
-                        .price(item.unitPrice())
-                        .payment("card")
-                        .status(String.valueOf(message.status()))
-                        .createdDate(message.createdDate())
-                        .reservationDate(null)
-                        .build()
-                )
-                .toList();
+        log.info("[saveOrderFromMessage] 수신한 메시지: merchantUid={}, status={}, itemCount={}",
+                message.merchantUid(), message.status(), message.items().size());
 
-        DeliveryAddress address = new DeliveryAddress(
-                null,
-                message.userUid() != null ? Long.valueOf(message.userUid()) : null,
-                message.socialUid() != null ? Long.valueOf(message.socialUid()) : null,
-                message.merchantUid(),
-                message.deliveryAddress().addressStart(),
-                message.deliveryAddress().addressStartLat(),
-                message.deliveryAddress().addressStartLan(),
-                message.deliveryAddress().addressDestination(),
-                message.deliveryAddress().addressDestinationLat(),
-                message.deliveryAddress().addressDestinationLan()
+        message.items().forEach(item ->
+                log.info("[saveOrderFromMessage] item: name={}, version={}", item.menuName(), item.version())
         );
 
-        return txOp.transactional(
-                orderRepository.saveAll(ordersToSave).then(deliveryAddressRepository.save(address))
-        ).then();
+        return orderRepository.findByMerchantUid(message.merchantUid())
+                .filter(order -> order.getStatus() == OrderStatus.ORDER_CREATED)
+                .flatMap(orderRepository::delete)
+                .then(Mono.defer(() -> {
+                    List<Order> ordersToSave = message.items().stream()
+                            .filter(item -> item.version() == 0)
+                            .map(item -> Order.builder()
+                                    .userUid(message.userUid())
+                                    .socialUid(message.socialUid())
+                                    .storeUid(message.storeUid())
+                                    .merchantUid(message.merchantUid())
+                                    .menuName(item.menuName())
+                                    .amount(item.amount())
+                                    .price(item.unitPrice())
+                                    .payment("card")
+                                    .status(message.status())
+                                    .createdDate(message.createdDate())
+                                    .calorie(item.calorie())
+                                    .reservationDate(null)
+                                    .build()
+                            )
+                            .toList();
+
+                    DeliveryAddress address = new DeliveryAddress(
+                            null,
+                            message.userUid() != null ? Long.valueOf(message.userUid()) : null,
+                            message.socialUid() != null ? Long.valueOf(message.socialUid()) : null,
+                            message.merchantUid(),
+                            message.deliveryAddress().addressStart(),
+                            message.deliveryAddress().addressStartLat(),
+                            message.deliveryAddress().addressStartLan(),
+                            message.deliveryAddress().addressDestination(),
+                            message.deliveryAddress().addressDestinationLat(),
+                            message.deliveryAddress().addressDestinationLan()
+                    );
+
+                    return txOp.transactional(
+                            orderRepository.saveAll(ordersToSave).then(deliveryAddressRepository.save(address))
+                    ).then();
+                }));
     }
 
+    // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
+    private void validateStatusForQueue(OrderStatus status) {
+        if (status != OrderStatus.PAYMENT_COMPLETED &&
+                status != OrderStatus.ORDER_CONFIRMED &&
+                status != OrderStatus.ORDER_CANCELLED &&
+                status != OrderStatus.ORDER_COOKING &&
+                status != OrderStatus.ORDER_DELIVERING &&
+                status != OrderStatus.ORDER_DELIVERED) {
+            throw new IllegalArgumentException("이 상태는 MQ에 발행할 수 없습니다: " + status);
+        }
+    }
 
-    //프론트 요청으로 주문 저장
+    // 주문 저장 요청 처리 → MQ 발행
     public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
-        return txOp.transactional(
-                Flux.fromIterable(dto.getItems())
-                        .map(item -> Order.builder()
-                                .userUid(dto.getUserUid())
-                                .socialUid(dto.getSocialUid())
-                                .storeUid(dto.getStoreUid())
-                                .merchantUid(dto.getMerchantUid())
-                                .menuName(item.menuName())     // DTO의 필드를 직접 사용
-                                .amount(item.amount())
-                                .price(item.unitPrice())
-                                .calorie(item.calorie())
-                                .payment(dto.getPayment())
-                                .status(String.valueOf(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED))
-                                .reservationDate(dto.getReservationDate())
-                                .build()
-                        )
-                        .collectList()
-                        .flatMap(orderList ->
-                                orderRepository.saveAll(orderList)
-                                        .collectList()
-                                        .flatMap(savedOrders -> {
-                                            if (savedOrders.isEmpty()) {
-                                                return Mono.error(new RuntimeException("주문 저장 실패"));
-                                            }
-                                            Integer orderUid = savedOrders.get(0).getUid();
+        log.info("[submitOrder] 요청 들어옴: merchantUid={}, version={}", dto.getMerchantUid(), dto.getVersion());
 
-                                            DeliveryAddressDTO addressDTO = dto.getDeliveryAddress();
-                                            DeliveryAddress address = new DeliveryAddress(
-                                                    null,
-                                                    dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
-                                                    dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
-                                                    savedOrders.get(0).getMerchantUid(),
-                                                    addressDTO.getAddressStart(),
-                                                    addressDTO.getAddressStartLat(),
-                                                    addressDTO.getAddressStartLan(),
-                                                    addressDTO.getAddressDestination(),
-                                                    addressDTO.getAddressDestinationLat(),
-                                                    addressDTO.getAddressDestinationLan()
-                                            );
+        if (dto.getVersion() != 0) {
+            log.warn("[submitOrder] 대표주문이므로 처리하지 않음: merchantUid={}", dto.getMerchantUid());
+            return Mono.empty();
+        }
 
-                                            log.info("save address : {}", address);
-                                            return deliveryAddressRepository.save(address)
+        return orderRepository.deletePreOrders(dto.getMerchantUid(), OrderStatus.ORDER_CREATED)
+                .then(Mono.defer(() -> {
+                    OrderCreatedMessage message = createOrderCreatedMessage(dto);
+                    validateStatusForQueue(message.status());
 
-                                                    .thenReturn(
-                                                            OrderResponseDTO.builder()
-                                                                    .success(true)
-                                                                    .message("주문 및 배송주소 저장 완료")
-                                                                    .orderUid(orderUid)
-                                                                    .build()
-                                                    );
-                                        })
-                        )
-        ).single();
+                    log.info("[submitOrder] MQ 발행 준비 완료: merchantUid={}, 상태={}", message.merchantUid(), message.status());
+
+                    streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(message).build());
+
+                    return Mono.just(OrderResponseDTO.builder()
+                            .success(true)
+                            .message("주문 요청이 MQ로 발행되었습니다.")
+                            .build());
+                }));
+    }
+
+    // OrderRequestDTO를 OrderCreatedMessage로 변환
+    private OrderCreatedMessage createOrderCreatedMessage(OrderRequestDTO dto) {
+        List<OrderItemMessage> items = dto.getItems().stream()
+                .filter(item -> item.version() == 0)
+                .map(item -> new OrderItemMessage(
+                        item.menuName(),
+                        item.amount(),
+                        item.calorie(),
+                        item.unitPrice(),
+                        item.version()
+                ))
+                .toList();
+
+        return new OrderCreatedMessage(
+                dto.getMerchantUid(),
+                dto.getUserUid(),
+                dto.getSocialUid(),
+                dto.getStoreUid(),
+                new DeliveryAddressMessage(
+                        dto.getDeliveryAddress().getAddressStart(),
+                        dto.getDeliveryAddress().getAddressStartLat(),
+                        dto.getDeliveryAddress().getAddressStartLan(),
+                        dto.getDeliveryAddress().getAddressDestination(),
+                        dto.getDeliveryAddress().getAddressDestinationLat(),
+                        dto.getDeliveryAddress().getAddressDestinationLan()
+                ),
+                items,
+                dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED,
+                getNow()
+        );
     }
 
 
-    // 결제 사전 검증
+    // 결제 사전 검증 + order_created 상태 주문 저장
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO req) {
         // 1) 예약시간 처리
         LocalDateTime reservationTime = req.getReservationDate();
@@ -204,7 +193,7 @@ public class OrderService {
                 .menuName(req.getMenuName())
                 .amount(1)
                 .payment("card")
-                .status(String.valueOf(OrderStatus.ORDER_CREATED))
+                .status(OrderStatus.ORDER_CREATED)
                 .price(req.getTotalPrice())
                 .calorie(0.0)
                 .userUid(req.getUserUid())
@@ -212,21 +201,25 @@ public class OrderService {
                 .build();
 
         // 3) 트랜잭션 안에서 저장하고 DTO 로 변환
-        return txOp.execute(tx -> orderRepository.save(toSave))
-                .single()
-                .map(saved -> PreparePaymentResponseDTO.builder()
-                        .merchantUid(saved.getMerchantUid())
-                        .requestedAmount(saved.getPrice())
-                        .message("사전 검증 및 저장 완료")
-                        .build());
+        return txOp.transactional(
+                orderRepository.findByMerchantUid(req.getMerchantUid())
+                        .filter(order -> order.getStatus() == OrderStatus.ORDER_CREATED)
+                        .flatMap(orderRepository::delete)
+                        .then(orderRepository.save(toSave))
+        ).map(saved -> PreparePaymentResponseDTO.builder()
+                .merchantUid(saved.getMerchantUid())
+                .requestedAmount(saved.getPrice())
+                .message("사전 검증 및 저장 완료")
+                .build());
     }
 
-    //결제 성공 후 상태 업데이트
+    // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
         return txOp.execute(tx ->
                 orderRepository.findByMerchantUid(merchantUid)
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
                         .flatMap(orig -> {
+
                             // 기존 데이터에서 버전을 유지하며 status 만 변경
                             Order updated = Order.builder()
                                     .uid(orig.getUid())
@@ -238,7 +231,7 @@ public class OrderService {
                                     .price(orig.getPrice())
                                     .calorie(orig.getCalorie())
                                     .payment(orig.getPayment())
-                                    .status(String.valueOf(OrderStatus.PAYMENT_COMPLETED))
+                                    .status(OrderStatus.PAYMENT_COMPLETED)
                                     .createdDate(orig.getCreatedDate())
                                     .reservationDate(orig.getReservationDate())
                                     .version(orig.getVersion())
@@ -248,12 +241,14 @@ public class OrderService {
         ).then();
     }
 
-    //결제 실패 후 상태 업데이트
+    // 결제 실패 처리 → 주문 상태 PAYMENT_FAILED 변경 + 대표 주문 삭제
     public Mono<Void> updateOrderStatusToFailed(String merchantUid) {
         return txOp.execute(tx ->
                 orderRepository.findByMerchantUid(merchantUid)
+                        .filter(order -> order.getVersion() == 0)
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
                         .flatMap(orig -> {
+
                             Order updated = Order.builder()
                                     .uid(orig.getUid())
                                     .userUid(orig.getUserUid())
@@ -264,13 +259,14 @@ public class OrderService {
                                     .price(orig.getPrice())
                                     .calorie(orig.getCalorie())
                                     .payment(orig.getPayment())
-                                    .status(String.valueOf(OrderStatus.PAYMENT_FAILED))
+                                    .status(OrderStatus.PAYMENT_FAILED)
                                     .createdDate(orig.getCreatedDate())
                                     .reservationDate(orig.getReservationDate())
                                     .version(orig.getVersion())
                                     .build();
                             return orderRepository.save(updated);
                         })
+                        .then(orderRepository.deleteRepresentativeOrder(merchantUid))
         ).then();
     }
 
