@@ -5,7 +5,7 @@ import com.example.orderservice.order.domain.OrderStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record OrderCreatedMessage(
+public record OrderCreatedMessage (
         String merchantUid,
         Integer userUid,
         Integer socialUid,

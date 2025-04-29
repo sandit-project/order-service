@@ -32,7 +32,8 @@ public class StoreOrderService {
                         order.menuName(),
                         order.amount(),
                         order.price(),
-                        order.calorie()
+                        order.calorie(),
+                        order.version()
                 )))
                 .payment(order.payment())
                 .status(order.status().name())

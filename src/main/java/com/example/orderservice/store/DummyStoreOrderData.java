@@ -13,7 +13,8 @@ public class DummyStoreOrderData {
                 "햄치즈 샌드위치",
                 2,
                 5500,
-                1000.3
+                1000.3,
+                0
         );
 
         CartItem item2 = new CartItem(
@@ -21,7 +22,8 @@ public class DummyStoreOrderData {
                 "터키 베이컨 샌드위치",
                 1,
                 6500,
-                1000.0
+                1000.0,
+                0
         );
 
         StoreOrderResponseDTO order1 = StoreOrderResponseDTO.builder()
