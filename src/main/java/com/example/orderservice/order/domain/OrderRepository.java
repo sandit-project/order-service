@@ -19,7 +19,7 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     Flux<Order> findByUserUid(@Param("userUid") Integer userUid);
 
     @Query("SELECT * FROM `orders` WHERE `merchant_uid` = :merchantUid")
-    Mono<Order> findByMerchantUid(@Param("merchantUid") String merchantUid);
+    Flux<Order> findByMerchantUid(@Param("merchantUid") String merchantUid);
 
     @Modifying
     @Query("DELETE FROM orders WHERE merchant_uid = :merchantUid AND (status = :status OR version = 1)")

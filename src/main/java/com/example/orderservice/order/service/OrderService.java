@@ -8,6 +8,7 @@ import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
+import com.fasterxml.jackson.core.TreeCodec;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class OrderService {
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
+    private final TreeCodec treeCodec;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -158,6 +160,8 @@ public class OrderService {
                 dto.getMerchantUid(),
                 dto.getUserUid(),
                 dto.getSocialUid(),
+                null,
+                null,
                 dto.getStoreUid(),
                 new DeliveryAddressMessage(
                         dto.getDeliveryAddress().getAddressStart(),
@@ -169,7 +173,8 @@ public class OrderService {
                 ),
                 items,
                 dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED,
-                getNow()
+                getNow(),
+                false
         );
     }
 
