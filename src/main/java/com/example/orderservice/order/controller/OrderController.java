@@ -36,11 +36,19 @@ public class OrderController {
                 .map(order -> convertToDetailDTO(List.of(order)));
     }
 
+//    @GetMapping("/user/{userUid}")
+//    public Mono<OrderDetailResponseDTO> findAllByUserUid(@PathVariable Integer userUid) {
+//        return orderService.findAllByUserUid(userUid)
+//                .collectList()
+//                .map(this::convertToDetailDTO);
+//    }
+
     @GetMapping("/user/{userUid}")
-    public Mono<OrderDetailResponseDTO> findAllByUserUid(@PathVariable Integer userUid) {
+    public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(@PathVariable Integer userUid) {
+        log.info("findAllByUserUid: {}", userUid);
         return orderService.findAllByUserUid(userUid)
-                .collectList()
-                .map(this::convertToDetailDTO);
+                .map(this::convertToSingleDetailDTO)
+                .collectList();
     }
 
     //결제 준비
@@ -79,12 +87,35 @@ public class OrderController {
                 .userUid(firstOrder.getUserUid())
                 .items(items)
                 .merchantUid(firstOrder.getMerchantUid())
+                .storeUid(firstOrder.getStoreUid())
                 .payment(firstOrder.getPayment())
                 .status(String.valueOf(firstOrder.getStatus()))
                 .createdDate(firstOrder.getCreatedDate())
                 .reservationDate(firstOrder.getReservationDate())
                 .build();
     }
+
+    private OrderDetailResponseDTO convertToSingleDetailDTO(Order order) {
+        return OrderDetailResponseDTO.builder()
+                .uid(order.getUid())
+                .userUid(order.getUserUid())
+                .storeUid(order.getStoreUid())
+                .merchantUid(order.getMerchantUid())
+                .items(List.of(new CartItem(
+                        order.getUid(),
+                        order.getMenuName(),
+                        order.getAmount(),
+                        order.getPrice(),
+                        order.getCalorie(),
+                        order.getVersion()
+                )))
+                .payment(order.getPayment())
+                .status(order.getStatus().toString())
+                .createdDate(order.getCreatedDate())
+                .reservationDate(order.getReservationDate())
+                .build();
+    }
+
 
     @PostMapping("/update-success")
     public Mono<OrderResponseDTO> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {

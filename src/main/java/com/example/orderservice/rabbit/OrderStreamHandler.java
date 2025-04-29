@@ -1,8 +1,6 @@
 package com.example.orderservice.rabbit;
 
-import com.example.orderservice.event.AcceptOrderMessage;
 import com.example.orderservice.event.OrderCreatedMessage;
-import com.example.orderservice.event.OrderDispatchedMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
@@ -11,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -39,4 +36,6 @@ public class OrderStreamHandler {
             }
         };
     }
+
+
 }
