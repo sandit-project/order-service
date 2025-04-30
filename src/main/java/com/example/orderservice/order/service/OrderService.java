@@ -65,11 +65,21 @@ public class OrderService {
                 .collectList()
                 .flatMap(existingOrders -> {
                     if (!existingOrders.isEmpty()) {
-                        // 이미 주문 존재할 경우 → 상태 업데이트
+                        boolean shouldUpdate = existingOrders.stream()
+                                .anyMatch(order -> order.getVersion() == 0 && order.getStatus() != message.status());
+
+                        if (!shouldUpdate) {
+                            log.info("[saveOrUpdateOrderFromMessage] 상태 동일 → 업데이트 생략: merchantUid={}, status={}",
+                                    message.merchantUid(), message.status());
+                            return Mono.empty();
+                        }
+
+                        // 상태만 업데이트
                         return txOp.transactional(
                                 Flux.fromIterable(existingOrders)
-                                        .filter(order -> order.getVersion() == 0) // version 0인 주문만 갱신
+                                        .filter(order -> order.getVersion() == 0 && order.getStatus() != message.status())
                                         .flatMap(order -> {
+                                            log.info("[saveOrUpdateOrderFromMessage] 상태 업데이트: {} -> {}", order.getStatus(), message.status());
                                             order.setStatus(message.status());
                                             order.setCreatedDate(message.createdDate());
                                             return orderRepository.save(order);
@@ -77,7 +87,7 @@ public class OrderService {
                         ).then();
                     }
 
-                    // 주문이 없으면 새로 저장
+                    // 신규 저장
                     List<Order> ordersToSave = message.items().stream()
                             .filter(item -> item.version() == 0)
                             .map(item -> Order.builder()
@@ -94,8 +104,7 @@ public class OrderService {
                                     .calorie(item.calorie())
                                     .reservationDate(null)
                                     .version(0)
-                                    .build()
-                            )
+                                    .build())
                             .toList();
 
                     DeliveryAddress address = new DeliveryAddress(
@@ -111,12 +120,15 @@ public class OrderService {
                             message.deliveryAddress().addressDestinationLan()
                     );
 
+                    log.info("[saveOrUpdateOrderFromMessage] 신규 주문 저장 시작: merchantUid={}", message.merchantUid());
+
                     return txOp.transactional(
                             orderRepository.saveAll(ordersToSave)
                                     .then(deliveryAddressRepository.save(address))
                     ).then();
                 });
     }
+
 
 
     // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
