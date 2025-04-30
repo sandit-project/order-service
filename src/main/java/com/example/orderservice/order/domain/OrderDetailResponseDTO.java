@@ -14,7 +14,7 @@ public class OrderDetailResponseDTO {
     private Integer userUid;
     private Integer storeUid;
     private String merchantUid;
-    private List<CartItem> items;
+    private List<CartItemRequestDTO> items;
     private String payment;
     private String status;
     private LocalDateTime createdDate;

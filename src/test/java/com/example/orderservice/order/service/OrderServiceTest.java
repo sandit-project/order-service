@@ -2,7 +2,7 @@ package com.example.orderservice.order.service;
 
 import com.example.orderservice.cart.Cart;
 import com.example.orderservice.cart.CartRepository;
-import com.example.orderservice.order.domain.CartItem;
+import com.example.orderservice.order.domain.CartItemRequestDTO;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.domain.OrderRepository;
 import com.example.orderservice.order.domain.OrderRequestDTO;
@@ -118,7 +118,7 @@ import static org.mockito.Mockito.*;
             LocalDateTime reserve = orderService.getNow().plusMinutes(1);
             OrderRequestDTO dto = OrderRequestDTO.builder()
                     .userUid(1).storeUid(2)
-                    .items(List.of(new CartItem(1, "A", 1, 1000, 100.0)))
+                    .items(List.of(new CartItemRequestDTO(1, "A", 1, 1000, 100.0)))
                     .payment("CARD").merchantUid("m3")
                     .paymentSuccess(true).reservationDate(reserve).build();
 
@@ -140,7 +140,7 @@ import static org.mockito.Mockito.*;
             LocalDateTime reserve = orderService.getNow().minusMinutes(10);
             OrderRequestDTO dto = OrderRequestDTO.builder()
                     .userUid(1).storeUid(2)
-                    .items(List.of(new CartItem(1, "B", 1, 2000, 200.0)))
+                    .items(List.of(new CartItemRequestDTO(1, "B", 1, 2000, 200.0)))
                     .payment("CARD").merchantUid("m4")
                     .paymentSuccess(true).reservationDate(reserve).build();
 

@@ -1,6 +1,6 @@
 package com.example.orderservice.store;
 
-import com.example.orderservice.order.domain.CartItem;
+import com.example.orderservice.order.domain.CartItemRequestDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,7 +8,7 @@ import java.util.List;
 public class DummyStoreOrderData {
     public static List<StoreOrderResponseDTO> getDummyStoreOrders() {
         // record: CartItem 생성자 호출
-        CartItem item1 = new CartItem(
+        CartItemRequestDTO item1 = new CartItemRequestDTO(
                 1,
                 "햄치즈 샌드위치",
                 2,
@@ -17,7 +17,7 @@ public class DummyStoreOrderData {
                 0
         );
 
-        CartItem item2 = new CartItem(
+        CartItemRequestDTO item2 = new CartItemRequestDTO(
                 2,
                 "터키 베이컨 샌드위치",
                 1,

@@ -64,8 +64,8 @@ public class OrderController {
 
         Order firstOrder = orders.get(0);
 
-        List<CartItem> items = orders.stream()
-                .map(order -> new CartItem(
+        List<CartItemRequestDTO> items = orders.stream()
+                .map(order -> new CartItemRequestDTO(
                         order.getUid(),
                         order.getMenuName(),
                         order.getAmount(),
@@ -94,7 +94,7 @@ public class OrderController {
                 .userUid(order.getUserUid())
                 .storeUid(order.getStoreUid())
                 .merchantUid(order.getMerchantUid())
-                .items(List.of(new CartItem(
+                .items(List.of(new CartItemRequestDTO(
                         order.getUid(),
                         order.getMenuName(),
                         order.getAmount(),

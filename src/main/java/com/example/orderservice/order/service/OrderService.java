@@ -3,12 +3,13 @@ package com.example.orderservice.order.service;
 import com.example.orderservice.event.DeliveryAddressMessage;
 import com.example.orderservice.event.OrderCreatedMessage;
 import com.example.orderservice.event.OrderItemMessage;
+import com.example.orderservice.menu.CartResponseDTO;
+import com.example.orderservice.menu.MenuClient;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
-import com.fasterxml.jackson.core.TreeCodec;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class OrderService {
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
+    private final MenuClient menuClient;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -177,11 +179,11 @@ public class OrderService {
                 ),
                 items,
                 dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED,
-                getNow(),
-                false
+                getNow()
         );
 
     }
+
 
     // 결제 사전 검증 + order_created 상태 주문 저장
     public Mono<PreparePaymentResponseDTO> preparePayment(PreparePaymentRequestDTO req) {
@@ -223,7 +225,6 @@ public class OrderService {
                 .build());
     }
 
-    // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
 //    public Mono<Void> updateOrderStatusToSuccess(String merchantUid, int expectedVersion) {
 //        return txOp.execute(tx ->
 //                orderRepository.findByMerchantUid(merchantUid)
@@ -240,6 +241,7 @@ public class OrderService {
 //        ).then();
 //    }
 
+    // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
         return txOp.execute(tx ->
                 orderRepository.findByMerchantUid(merchantUid)
@@ -267,7 +269,6 @@ public class OrderService {
         ).then();
     }
 
-    // 결제 실패 처리 → 주문 상태 PAYMENT_FAILED 변경 + 대표 주문 삭제
 //    public Mono<Void> updateOrderStatusToFailed(String merchantUid, int expectedVersion) {
 //        return txOp.execute(tx ->
 //                orderRepository.findByMerchantUid(merchantUid)
@@ -283,6 +284,8 @@ public class OrderService {
 //                        .then(orderRepository.deleteRepresentativeOrder(merchantUid))
 //        ).then();
 //    }
+
+    // 결제 실패 처리 → 주문 상태 PAYMENT_FAILED 변경 + 대표 주문 삭제
     public Mono<Void> updateOrderStatusToFailed(String merchantUid) {
         return txOp.execute(tx ->
                 orderRepository.findByMerchantUid(merchantUid)
