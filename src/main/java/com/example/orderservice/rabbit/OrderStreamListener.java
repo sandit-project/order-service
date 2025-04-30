@@ -1,6 +1,7 @@
 package com.example.orderservice.rabbit;
 
 import com.example.orderservice.event.OrderCreatedMessage;
+import com.example.orderservice.order.domain.Order;
 import com.example.orderservice.order.domain.OrderStatus;
 import com.example.orderservice.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +27,21 @@ public class OrderStreamListener {
         return message -> {
             log.info("Order Message 수신: {}", message);
 
+            // 다음 단계 바인딩 계산
             String bindingName = switch (message.status()) {
-                case PAYMENT_COMPLETED -> "orderCreated-out-1";
-                case ORDER_CONFIRMED   -> "orderCreated-out-2";
-                case ORDER_CANCELLED   -> "orderCreated-out-3";
-                case ORDER_COOKING     -> "orderCreated-out-4";
-                case ORDER_DELIVERING  -> "orderCreated-out-5";
-                case ORDER_DELIVERED   -> "orderCreated-out-6";
-                case ORDER_CREATED     -> "orderCreated-out-0";
+                case PAYMENT_COMPLETED   -> "statusChange-out-0";
+                case ORDER_CONFIRMED   -> "statusChange-out-1";
+                case ORDER_COOKING     -> "statusChange-out-2";
+                case ORDER_DELIVERING  -> "statusChange-out-3";
+                default -> null;
+            };
+
+            // 롤백(이전 단계) 바인딩 계산
+            String rollbackBinding = switch (message.status()) {
+                case PAYMENT_COMPLETED  -> "orderCreated-out-0";
+                case ORDER_CONFIRMED   -> "statusChange-out-0";
+                case ORDER_COOKING     -> "statusChange-out-1";
+                case ORDER_DELIVERING  -> "statusChange-out-2";
                 default -> null;
             };
 
@@ -42,18 +50,33 @@ public class OrderStreamListener {
                 return;
             }
 
-            orderService.saveOrderFromMessage(message)
-                    .doOnSuccess(unused -> {
-                        boolean result = streamBridge.send(bindingName, MessageBuilder.withPayload(message).build());
-
-                        if (!result) {
-                            log.error("MQ 발행 실패: {}", bindingName);
-                        } else {
-                            log.info("MQ 발행 성공: {}", bindingName);
-                        }
+            orderService.saveOrUpdateOrderFromMessage(message)
+                    // 저장 성공 시 다음 단계로 발행
+                    .flatMap(unused -> {
+                        sendMessage(bindingName, message);
+                        return Mono.empty();
                     })
-                    .doOnError(error -> log.error("메시지 처리 실패", error))
+                    // 저장 실패 시 롤백 단계로 재발행
+                    .onErrorResume(error -> {
+                        log.error("메시지 처리 실패, 롤백 시도:", error);
+                        if (rollbackBinding != null) {
+                            sendMessage(rollbackBinding, message);
+                        }
+                        return Mono.empty();
+                    })
                     .subscribe();
         };
+    }
+
+    // StreamBridge 로직을 중복 없이 처리하기 위한 헬퍼
+    private void sendMessage(String destination, OrderCreatedMessage msg) {
+        boolean sent = streamBridge.send(destination,
+                MessageBuilder.withPayload(msg).build()
+        );
+        if (!sent) {
+            log.error("MQ 발행 실패: {}", destination);
+        } else {
+            log.info("MQ 발행 성공: {}", destination);
+        }
     }
 }

@@ -57,18 +57,27 @@ public class OrderService {
     }
 
     //RabbitMQ 메시지 받아서 주문 저장
-    public Mono<Void> saveOrderFromMessage(OrderCreatedMessage message) {
-        log.info("[saveOrderFromMessage] 수신한 메시지: merchantUid={}, status={}, itemCount={}",
+    public Mono<Void> saveOrUpdateOrderFromMessage(OrderCreatedMessage message) {
+        log.info("[saveOrUpdateOrderFromMessage] 수신한 메시지: merchantUid={}, status={}, itemCount={}",
                 message.merchantUid(), message.status(), message.items().size());
 
-        message.items().forEach(item ->
-                log.info("[saveOrderFromMessage] item: name={}, version={}", item.menuName(), item.version())
-        );
-
         return orderRepository.findByMerchantUid(message.merchantUid())
-                .filter(order -> order.getStatus() == OrderStatus.ORDER_CREATED)
-                .flatMap(orderRepository::delete)
-                .then(Mono.defer(() -> {
+                .collectList()
+                .flatMap(existingOrders -> {
+                    if (!existingOrders.isEmpty()) {
+                        // 이미 주문 존재할 경우 → 상태 업데이트
+                        return txOp.transactional(
+                                Flux.fromIterable(existingOrders)
+                                        .filter(order -> order.getVersion() == 0) // version 0인 주문만 갱신
+                                        .flatMap(order -> {
+                                            order.setStatus(message.status());
+                                            order.setCreatedDate(message.createdDate());
+                                            return orderRepository.save(order);
+                                        })
+                        ).then();
+                    }
+
+                    // 주문이 없으면 새로 저장
                     List<Order> ordersToSave = message.items().stream()
                             .filter(item -> item.version() == 0)
                             .map(item -> Order.builder()
@@ -84,6 +93,7 @@ public class OrderService {
                                     .createdDate(message.createdDate())
                                     .calorie(item.calorie())
                                     .reservationDate(null)
+                                    .version(0)
                                     .build()
                             )
                             .toList();
@@ -102,10 +112,12 @@ public class OrderService {
                     );
 
                     return txOp.transactional(
-                            orderRepository.saveAll(ordersToSave).then(deliveryAddressRepository.save(address))
+                            orderRepository.saveAll(ordersToSave)
+                                    .then(deliveryAddressRepository.save(address))
                     ).then();
-                }));
+                });
     }
+
 
     // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
     private void validateStatusForQueue(OrderStatus status) {
