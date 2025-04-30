@@ -17,7 +17,7 @@ public interface StoreOrderRepository extends ReactiveCrudRepository<Order,Integ
         SELECT * FROM orders
         WHERE store_uid = :storeUid
         ORDER BY uid DESC 
-        LIMIT :limit    
+        LIMIT :limit
         """)
     Flux<Order> findOrderByStoreUid(@Param("storeUid") Integer storeUid,
                                     @Param("limit") int limit);
@@ -28,12 +28,19 @@ public interface StoreOrderRepository extends ReactiveCrudRepository<Order,Integ
     @Query("""
         SELECT * FROM orders
         WHERE store_uid = :storeUid
-        AND uid < lastUid
+        AND uid < :lastUid
         ORDER BY uid DESC 
         LIMIT :limit
 """)
     Flux<Order> findOrderByStoreUidWithCursor(@Param("storeUid") Integer storeUid,
                                              @Param("lastUid") Integer lastUid,
                                              @Param("limit") int limit);
+
+    @Query("""
+            SELECT * 
+            FROM `orders`
+            WHERE store_uid = :storeUid
+            """)
+    Flux<Order> findAllOrders(@Param("storeUid") Integer storeUid);
 
 }
