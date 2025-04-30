@@ -21,7 +21,7 @@ public class StoreOrderService {
                 ? storeOrderRepository.findOrderByStoreUidWithCursor(storeUid,lastUid,limit)
                 : storeOrderRepository.findOrderByStoreUid(storeUid,limit);
 
-        return storeOrders.map(order->StoreOrderResponseDTO.builder()
+        Flux<StoreOrderResponseDTO> test =  storeOrders.map(order->StoreOrderResponseDTO.builder()
                 .uid(order.uid())
                 .userUid(order.userUid())
                 .storeUid(order.storeUid())
@@ -40,5 +40,13 @@ public class StoreOrderService {
                 .reservationDate(order.reservationDate())
                 .build()
         );
+        return test;
+    }
+
+    /**
+     * 지점 전체 주문 수 조회
+     */
+    public Mono<Long> countByStoreUid(Integer storeUid) {
+        return storeOrderRepository.findAllOrders(storeUid).count();
     }
 }
