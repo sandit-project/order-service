@@ -36,13 +36,6 @@ public class OrderController {
                 .map(order -> convertToDetailDTO(List.of(order)));
     }
 
-//    @GetMapping("/user/{userUid}")
-//    public Mono<OrderDetailResponseDTO> findAllByUserUid(@PathVariable Integer userUid) {
-//        return orderService.findAllByUserUid(userUid)
-//                .collectList()
-//                .map(this::convertToDetailDTO);
-//    }
-
     @GetMapping("/user/{userUid}")
     public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(@PathVariable Integer userUid) {
         log.info("findAllByUserUid: {}", userUid);
