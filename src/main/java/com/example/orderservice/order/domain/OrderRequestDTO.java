@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
 import org.springframework.data.annotation.Version;
 
@@ -27,7 +26,7 @@ public class OrderRequestDTO {
         //주문할 상품들
         @NotEmpty(message = "You must order at least 1 item.")
         @Valid
-        private List<CartItem> items;
+        private List<CartItemRequestDTO> items;
         @Valid
         private DeliveryAddressDTO deliveryAddress;
         @NotBlank(message = "payment must be defined")

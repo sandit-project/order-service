@@ -36,13 +36,6 @@ public class OrderController {
                 .map(order -> convertToDetailDTO(List.of(order)));
     }
 
-//    @GetMapping("/user/{userUid}")
-//    public Mono<OrderDetailResponseDTO> findAllByUserUid(@PathVariable Integer userUid) {
-//        return orderService.findAllByUserUid(userUid)
-//                .collectList()
-//                .map(this::convertToDetailDTO);
-//    }
-
     @GetMapping("/user/{userUid}")
     public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(@PathVariable Integer userUid) {
         log.info("findAllByUserUid: {}", userUid);
@@ -71,8 +64,8 @@ public class OrderController {
 
         Order firstOrder = orders.get(0);
 
-        List<CartItem> items = orders.stream()
-                .map(order -> new CartItem(
+        List<CartItemRequestDTO> items = orders.stream()
+                .map(order -> new CartItemRequestDTO(
                         order.getUid(),
                         order.getMenuName(),
                         order.getAmount(),
@@ -101,7 +94,7 @@ public class OrderController {
                 .userUid(order.getUserUid())
                 .storeUid(order.getStoreUid())
                 .merchantUid(order.getMerchantUid())
-                .items(List.of(new CartItem(
+                .items(List.of(new CartItemRequestDTO(
                         order.getUid(),
                         order.getMenuName(),
                         order.getAmount(),

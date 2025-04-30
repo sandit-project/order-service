@@ -18,7 +18,6 @@ public record OrderCreatedMessage (
         DeliveryAddressMessage deliveryAddress,
         List<OrderItemMessage> items,
         OrderStatus status,
-        LocalDateTime createdDate,
-        boolean republished
+        LocalDateTime createdDate
 ){
 }

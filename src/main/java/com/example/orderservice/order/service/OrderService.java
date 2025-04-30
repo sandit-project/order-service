@@ -3,12 +3,13 @@ package com.example.orderservice.order.service;
 import com.example.orderservice.event.DeliveryAddressMessage;
 import com.example.orderservice.event.OrderCreatedMessage;
 import com.example.orderservice.event.OrderItemMessage;
+import com.example.orderservice.menu.CartResponseDTO;
+import com.example.orderservice.menu.MenuClient;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
-import com.fasterxml.jackson.core.TreeCodec;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,7 @@ public class OrderService {
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
-    private final TreeCodec treeCodec;
+    private final MenuClient menuClient;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -106,6 +107,57 @@ public class OrderService {
                 }));
     }
 
+    // 상태 변경
+    public Mono<Void> updateOrderFromMessage(OrderCreatedMessage message) {
+        log.info("[updateOrderFromMessage] merchantUid={}, newStatus={}", message.merchantUid(), message.status());
+
+        return orderRepository.findByMerchantUid(message.merchantUid())
+                .collectList()
+                .flatMap(existingOrders -> {
+                    if (existingOrders.isEmpty()) {
+                        log.warn("[updateOrderFromMessage] 기존 주문 없음, 새로 저장함.");
+                        return saveOrderFromMessage(message); // 신규 저장
+                    }
+
+                    // 상태 변화가 없으면 무시
+                    boolean statusChanged = existingOrders.stream()
+                            .anyMatch(o -> o.getStatus() != message.status());
+
+                    if (!statusChanged) {
+                        log.info("[updateOrderFromMessage] 모든 주문이 이미 동일 상태임 → 업데이트 생략");
+                        return Mono.empty();
+                    }
+
+                    // 상태 업데이트용 객체 생성 (uid 등 필수값 포함!)
+                    List<Order> updatedOrders = existingOrders.stream()
+                            .map(orig -> Order.builder()
+                                    .uid(orig.getUid()) // ✅ 꼭 있어야 UPDATE 가능
+                                    .userUid(orig.getUserUid())
+                                    .storeUid(orig.getStoreUid())
+                                    .merchantUid(orig.getMerchantUid())
+                                    .menuName(orig.getMenuName())
+                                    .amount(orig.getAmount())
+                                    .price(orig.getPrice())
+                                    .payment(orig.getPayment())
+                                    .calorie(orig.getCalorie())
+                                    .status(message.status()) // ✅ 상태만 바꿈
+                                    .createdDate(orig.getCreatedDate())
+                                    .reservationDate(orig.getReservationDate())
+                                    .version(orig.getVersion()) // ✅ 낙관적 락 보호
+                                    .build()
+                            )
+                            .toList();
+
+                    return txOp.transactional(orderRepository.saveAll(updatedOrders).then());
+                })
+                .onErrorResume(e -> {
+                    log.error("[updateOrderFromMessage] 주문 상태 업데이트 실패: {}", e.getMessage(), e);
+                    return Mono.empty(); // fallback 로직 필요하면 여기에
+                });
+    }
+
+
+
     // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
     private void validateStatusForQueue(OrderStatus status) {
         if (status != OrderStatus.PAYMENT_COMPLETED &&
@@ -156,6 +208,11 @@ public class OrderService {
                 ))
                 .toList();
 
+        //주소가 누락되면 이벤트 메시지 미발행
+        if (dto.getDeliveryAddress() == null) {
+            throw new IllegalArgumentException("배송 주소가 누락되었습니다.");
+        }
+
         return new OrderCreatedMessage(
                 dto.getMerchantUid(),
                 dto.getUserUid(),
@@ -173,9 +230,9 @@ public class OrderService {
                 ),
                 items,
                 dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED,
-                getNow(),
-                false
+                getNow()
         );
+
     }
 
 
@@ -214,9 +271,26 @@ public class OrderService {
         ).map(saved -> PreparePaymentResponseDTO.builder()
                 .merchantUid(saved.getMerchantUid())
                 .requestedAmount(saved.getPrice())
+                .version(saved.getVersion())
                 .message("사전 검증 및 저장 완료")
                 .build());
     }
+
+//    public Mono<Void> updateOrderStatusToSuccess(String merchantUid, int expectedVersion) {
+//        return txOp.execute(tx ->
+//                orderRepository.findByMerchantUid(merchantUid)
+//                        .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
+//                        .filter(orig -> orig.getVersion() == expectedVersion) // 낙관적 락 체크
+//                        .switchIfEmpty(Mono.error(new IllegalStateException("동시 수정 충돌 발생"))) // 락 충돌 시
+//                        .flatMap(orig -> {
+//                            Order updated = orig.builder()
+//                                    .status(OrderStatus.PAYMENT_COMPLETED)
+//                                    .version(orig.getVersion() + 1) // 수동 증가
+//                                    .build();
+//                            return orderRepository.save(updated);
+//                        })
+//        ).then();
+//    }
 
     // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
@@ -245,6 +319,22 @@ public class OrderService {
                         })
         ).then();
     }
+
+//    public Mono<Void> updateOrderStatusToFailed(String merchantUid, int expectedVersion) {
+//        return txOp.execute(tx ->
+//                orderRepository.findByMerchantUid(merchantUid)
+//                        .filter(order -> order.getVersion() == expectedVersion)
+//                        .switchIfEmpty(Mono.error(new IllegalStateException("동시 수정 충돌 발생 또는 주문 없음")))
+//                        .flatMap(orig -> {
+//                            Order updated = orig.builder()
+//                                    .status(OrderStatus.PAYMENT_FAILED)
+//                                    .version(orig.getVersion() + 1)
+//                                    .build();
+//                            return orderRepository.save(updated);
+//                        })
+//                        .then(orderRepository.deleteRepresentativeOrder(merchantUid))
+//        ).then();
+//    }
 
     // 결제 실패 처리 → 주문 상태 PAYMENT_FAILED 변경 + 대표 주문 삭제
     public Mono<Void> updateOrderStatusToFailed(String merchantUid) {

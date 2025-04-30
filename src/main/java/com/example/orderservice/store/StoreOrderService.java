@@ -1,11 +1,10 @@
 package com.example.orderservice.store;
 
-import com.example.orderservice.order.domain.CartItem;
+import com.example.orderservice.order.domain.CartItemRequestDTO;
 import com.example.orderservice.order.domain.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -27,7 +26,7 @@ public class StoreOrderService {
                 .userUid(order.userUid())
                 .storeUid(order.storeUid())
                 .merchantUid(order.merchantUid())
-                .items(List.of(new CartItem(
+                .items(List.of(new CartItemRequestDTO(
                         order.uid(),
                         order.menuName(),
                         order.amount(),

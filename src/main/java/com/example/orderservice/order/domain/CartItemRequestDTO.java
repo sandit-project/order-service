@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.data.annotation.Version;
 
 //메뉴 1개의 정보 (프론트랑 통신하는 DTO)
-public record CartItem (
+public record CartItemRequestDTO(
         @JsonProperty("uid")
         Integer uid,
 
@@ -36,5 +36,5 @@ public record CartItem (
         Integer version
 ){
         @JsonCreator
-        public CartItem{}
+        public CartItemRequestDTO {}
 }

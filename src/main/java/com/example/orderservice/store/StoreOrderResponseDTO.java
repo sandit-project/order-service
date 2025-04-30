@@ -1,6 +1,6 @@
 package com.example.orderservice.store;
 
-import com.example.orderservice.order.domain.CartItem;
+import com.example.orderservice.order.domain.CartItemRequestDTO;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -13,7 +13,7 @@ public class StoreOrderResponseDTO {
     private Integer userUid;
     private Integer storeUid;
     private String merchantUid;
-    private List<CartItem> items;
+    private List<CartItemRequestDTO> items;
     private String payment;
     private String status;
     private LocalDateTime createdDate;
