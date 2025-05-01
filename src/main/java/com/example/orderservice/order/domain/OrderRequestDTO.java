@@ -18,7 +18,7 @@ import java.util.List;
 @ToString
 //전체 주문 정보
 public class OrderRequestDTO {
-
+        private Integer orderUid;
         private Integer userUid;
         private Integer socialUid;
         @NotNull(message = "store must be defined")

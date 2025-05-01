@@ -180,19 +180,28 @@ public class OrderService {
         }
 
         return orderRepository.deletePreOrders(dto.getMerchantUid(), OrderStatus.ORDER_CREATED)
-                .then(Mono.defer(() -> {
-                    OrderCreatedMessage message = createOrderCreatedMessage(dto);
-                    validateStatusForQueue(message.status());
+                .then(orderRepository.findByMerchantUid(dto.getMerchantUid())
+                        .collectList()
+                        .flatMap(preExistingOrders -> {
+                            OrderCreatedMessage message = createOrderCreatedMessage(dto);
+                            validateStatusForQueue(message.status());
 
-                    log.info("[submitOrder] MQ 발행 준비 완료: merchantUid={}, 상태={}", message.merchantUid(), message.status());
+                            log.info("[submitOrder] MQ 발행 준비 완료: merchantUid={}, 상태={}", message.merchantUid(), message.status());
 
-                    streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(message).build());
+                            streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(message).build());
 
-                    return Mono.just(OrderResponseDTO.builder()
-                            .success(true)
-                            .message("주문 요청이 MQ로 발행되었습니다.")
-                            .build());
-                }));
+                            Integer customOrderUid = preExistingOrders.stream()
+                                    .filter(o -> o.getMenuName().equals("커스텀 샌드위치"))
+                                    .map(Order::getUid)
+                                    .findFirst()
+                                    .orElse(null);
+
+                            return Mono.just(OrderResponseDTO.builder()
+                                    .success(true)
+                                    .message("주문 요청이 MQ로 발행되었습니다.")
+                                    .orderUid(customOrderUid)
+                                    .build());
+                        }));
     }
 
     // OrderRequestDTO를 OrderCreatedMessage로 변환
