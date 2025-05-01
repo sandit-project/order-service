@@ -103,7 +103,7 @@ public class OrderStreamListener {
                 return;
             }
 
-            // 🚀 업데이트 혹은 저장 처리
+            // 업데이트 혹은 저장 처리
             orderService.updateOrderFromMessage(message)
                     .then(Mono.fromRunnable(() -> sendMessage(bindingName, message)))
                     .onErrorResume(error -> {

@@ -18,6 +18,7 @@ public record OrderCreatedMessage (
         DeliveryAddressMessage deliveryAddress,
         List<OrderItemMessage> items,
         OrderStatus status,
-        LocalDateTime createdDate
+        LocalDateTime createdDate,
+        LocalDateTime reservationDate
 ){
 }

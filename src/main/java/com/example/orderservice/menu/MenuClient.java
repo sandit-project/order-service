@@ -3,6 +3,8 @@ package com.example.orderservice.menu;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -13,6 +15,9 @@ public interface MenuClient {
     @GetMapping("/stores")
     List<StoreResponseDTO> getStores();
 
-    @GetMapping("/menus/cart/user/{userUid}")
-    CartResponseDTO getCartItemsByUserUid(@PathVariable("userUid") Long userUid);
+//    @GetMapping("/menus/cart/user/{userUid}")
+//    CartResponseDTO getCartItemsByUserUid(@PathVariable("userUid") Long userUid);
+
+//    @PostMapping("/menus/cart/delete-selected")
+//    void deleteSelectedCartItems(@RequestParam("selectedIds") List<Long> selectedIds);
 }

@@ -5,11 +5,13 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
+@ToString
 public class PreparePaymentRequestDTO {
 
     @NotBlank(message = "menuName must be defined")

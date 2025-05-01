@@ -33,7 +33,7 @@ public class OrderRequestDTO {
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime reservationDate;
         private boolean paymentSuccess;
         @Version
