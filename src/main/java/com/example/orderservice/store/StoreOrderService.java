@@ -2,6 +2,7 @@ package com.example.orderservice.store;
 
 import com.example.orderservice.order.domain.CartItemRequestDTO;
 import com.example.orderservice.order.domain.Order;
+import com.example.orderservice.order.domain.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -17,12 +18,22 @@ public class StoreOrderService {
     /**
      * 지점 주문 목록 조회
      */
-    public Flux<StoreOrderResponseDTO> findAllByStoreUid (Integer storeUid, int limit, Integer lastUid){
-        Flux<Order> storeOrders = (lastUid !=null)
-                ? storeOrderRepository.findOrderByStoreUidWithCursor(storeUid,lastUid,limit)
-                : storeOrderRepository.findOrderByStoreUid(storeUid,limit);
+    public Flux<StoreOrderResponseDTO> findAllByStoreUid (
+            Integer storeUid, int limit, Integer lastUid,String status)
+    {
+        Flux<Order> storeOrders;
+        if (status != null) {
+            OrderStatus os = OrderStatus.valueOf(status);
+            storeOrders = (lastUid != null)
+                    ? storeOrderRepository.findOrderByStoreUidAndStatusWithCursor(storeUid, os, lastUid, limit)
+                    : storeOrderRepository.findOrderByStoreUidAndStatus(storeUid, os, limit);
+        } else {
+            storeOrders = (lastUid != null)
+                    ? storeOrderRepository.findOrderByStoreUidWithCursor(storeUid, lastUid, limit)
+                    : storeOrderRepository.findOrderByStoreUid(storeUid, limit);
+        }
 
-        Flux<StoreOrderResponseDTO> test =  storeOrders.map(order->StoreOrderResponseDTO.builder()
+        return storeOrders.map(order->StoreOrderResponseDTO.builder()
                 .uid(order.uid())
                 .userUid(order.userUid())
                 .storeUid(order.storeUid())
@@ -41,7 +52,14 @@ public class StoreOrderService {
                 .reservationDate(order.reservationDate())
                 .build()
         );
-        return test;
+
+    }
+
+    /**
+     * 상태 변경 로직
+     */
+    public Mono<Void> updateStatus(Integer merchantUid, OrderStatus newStatus) {
+        return storeOrderRepository.updateStatusByUid(merchantUid,newStatus);
     }
 
     /**
