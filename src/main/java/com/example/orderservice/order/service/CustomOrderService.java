@@ -50,6 +50,7 @@ public class CustomOrderService {
             return Mono.just(OrderResponseDTO.builder()
                     .success(false)
                     .message("유효하지 않은 주문 UID")
+                    .orderUid(orderUid)
                     .build());
         }
 

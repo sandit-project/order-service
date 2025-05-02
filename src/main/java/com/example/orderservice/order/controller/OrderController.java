@@ -109,6 +109,15 @@ public class OrderController {
                 .build();
     }
 
+    @PutMapping("/{merchantUid}/status")
+    public Mono<OrderStatusChangeResponseDTO> changeOrderStatus(
+            @PathVariable String merchantUid,
+            @RequestParam OrderStatus newStatus
+    ) {
+        log.info("changeOrderStatus: {}", merchantUid, newStatus);
+        return orderService.changeOrderStatus(merchantUid, newStatus);
+    }
+
 
     @PostMapping("/update-success")
     public Mono<OrderResponseDTO> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {

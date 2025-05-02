@@ -28,4 +28,5 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     @Query("DELETE FROM `orders` WHERE `merchant_uid` = :merchantUid AND version = 1")
     Mono<Void> deleteRepresentativeOrder(String merchantUid);
 
+
 }
