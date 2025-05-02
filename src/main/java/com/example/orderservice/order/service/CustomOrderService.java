@@ -43,64 +43,41 @@ public class CustomOrderService {
                 );
     }
 
-    /** 2. 최종 주문 + 옵션 연동 */
+    //2. 최종 주문 + 옵션 연동
     public Mono<OrderResponseDTO> submitFinalOrder(FinalCustomOrderRequest finalReq) {
-        return orderService.submitOrder(finalReq.getOrderRequestDTO())
-                .flatMap(orderResp -> {
-                    // 주문 자체가 실패했다면 바로 실패 DTO 리턴
-                    if (!orderResp.isSuccess()) {
-                        return Mono.just(orderResp);
-                    }
+        Integer orderUid = finalReq.getOrderRequestDTO().getOrderUid();
+        if (orderUid == null || orderUid <= 0) {
+            return Mono.just(OrderResponseDTO.builder()
+                    .success(false)
+                    .message("유효하지 않은 주문 UID")
+                    .build());
+        }
 
-                    Integer orderUid = orderResp.getOrderUid();
-                    if (orderUid == null) {
-                        return Mono.just(OrderResponseDTO.builder()
-                                .success(false)
-                                .message("주문 UID 누락")
-                                .build());
-                    }
-
-                    // 옵션 테이블에서 프리뷰 레코드 찾아서 → 주문 PK로 uid 덮어쓰기 → save
-                    return customOrderRepository.findById(orderUid)
-                            .switchIfEmpty(Mono.error(new IllegalArgumentException("저장된 옵션을 찾을 수 없습니다")))
-                            .flatMap(opt -> {
-                                // 주문 PK(orderUid)를 custom_order.uid 로 사용
-                                return customOrderRepository.save(
-                                        CustomOrder.builder()
-                                                .uid(orderResp.getOrderUid())   // orders.uid 와 동일하게 덮어쓰기
-                                                .bread(opt.bread())
-                                                .material1(opt.material1())
-                                                .material2(opt.material2())
-                                                .material3(opt.material3())
-                                                .cheese(opt.cheese())
-                                                .vegetable1(opt.vegetable1())
-                                                .vegetable2(opt.vegetable2())
-                                                .vegetable3(opt.vegetable3())
-                                                .vegetable4(opt.vegetable4())
-                                                .vegetable5(opt.vegetable5())
-                                                .vegetable6(opt.vegetable6())
-                                                .vegetable7(opt.vegetable7())
-                                                .vegetable8(opt.vegetable8())
-                                                .sauce1(opt.sauce1())
-                                                .sauce2(opt.sauce2())
-                                                .sauce3(opt.sauce3())
-                                                .version(opt.version())
-                                                .build()
-                                );
-                            })
-                            .thenReturn(OrderResponseDTO.builder()
-                                    .success(true)
-                                    .message("커스텀 주문 완료")
-                                    .orderUid(orderResp.getOrderUid()) // 최종 주문 PK
-                                    .build()
-                            );
-                })
-                .onErrorResume(e -> Mono.just(
-                        OrderResponseDTO.builder()
-                                .success(false)
-                                .message("최종 주문 실패: " + e.getMessage())
-                                .build()
-                ));
+        return customOrderRepository.save(
+                CustomOrder.builder()
+                        .uid(orderUid)
+                        .bread(finalReq.getCustomOrderRequestDTO().getBread())
+                        .material1(finalReq.getCustomOrderRequestDTO().getMaterial1())
+                        .material2(finalReq.getCustomOrderRequestDTO().getMaterial2())
+                        .material3(finalReq.getCustomOrderRequestDTO().getMaterial3())
+                        .cheese(finalReq.getCustomOrderRequestDTO().getCheese())
+                        .vegetable1(finalReq.getCustomOrderRequestDTO().getVegetable1())
+                        .vegetable2(finalReq.getCustomOrderRequestDTO().getVegetable2())
+                        .vegetable3(finalReq.getCustomOrderRequestDTO().getVegetable3())
+                        .vegetable4(finalReq.getCustomOrderRequestDTO().getVegetable4())
+                        .vegetable5(finalReq.getCustomOrderRequestDTO().getVegetable5())
+                        .vegetable6(finalReq.getCustomOrderRequestDTO().getVegetable6())
+                        .vegetable7(finalReq.getCustomOrderRequestDTO().getVegetable7())
+                        .vegetable8(finalReq.getCustomOrderRequestDTO().getVegetable8())
+                        .sauce1(finalReq.getCustomOrderRequestDTO().getSauce1())
+                        .sauce2(finalReq.getCustomOrderRequestDTO().getSauce2())
+                        .sauce3(finalReq.getCustomOrderRequestDTO().getSauce3())
+                        .build()
+        ).thenReturn(OrderResponseDTO.builder()
+                .success(true)
+                .message("커스텀 주문 저장 완료")
+                .orderUid(orderUid)
+                .build());
     }
 
     private boolean isNull(Integer value) {

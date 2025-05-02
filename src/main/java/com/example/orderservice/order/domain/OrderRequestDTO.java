@@ -18,7 +18,7 @@ import java.util.List;
 @ToString
 //전체 주문 정보
 public class OrderRequestDTO {
-
+        private Integer orderUid;
         private Integer userUid;
         private Integer socialUid;
         @NotNull(message = "store must be defined")
@@ -33,7 +33,7 @@ public class OrderRequestDTO {
         private String payment;
         @NotBlank(message = "merchantUid must be defined")
         private String merchantUid;
-        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime reservationDate;
         private boolean paymentSuccess;
         @Version
