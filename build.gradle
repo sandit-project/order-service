@@ -79,7 +79,7 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-stream'
     implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
-
+    implementation 'org.springframework.data:spring-data-relational'
 
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     // Amazon SQS 메시징을 위한 의존성 추가

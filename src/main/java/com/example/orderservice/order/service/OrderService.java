@@ -25,6 +25,7 @@ public class OrderService {
     private final static Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private final OrderRepository orderRepository;
+    private final DeliveryOrderRepository deliveryOrderRepository;
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
@@ -37,6 +38,16 @@ public class OrderService {
     // 모든 주문 조회
     public Flux<Order> findAllOrders() {
         return orderRepository.findAllOrders();
+    }
+
+    // 조리중 상태 주문 조회
+    public Flux<DeliveryOrderResponseDTO> getCookingOrders() {
+        return deliveryOrderRepository.getCookingOrders();
+    }
+
+    // 배달중 상태 주문 조회
+    public Flux<DeliveryOrderResponseDTO> getDeliveringOrders() {
+        return deliveryOrderRepository.getDeliveringOrders();
     }
 
     // uid로 주문 조회 (단건)
