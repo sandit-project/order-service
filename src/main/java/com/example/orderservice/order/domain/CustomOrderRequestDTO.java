@@ -9,6 +9,7 @@ import lombok.ToString;
 @Builder
 @ToString
 public class CustomOrderRequestDTO {
+        private Integer uid;
         @NotNull(message = "bread must be defined")
         private Integer bread;
         @NotNull(message = "material 1 must be defined")
@@ -29,4 +30,5 @@ public class CustomOrderRequestDTO {
         private Integer sauce1;
         private Integer sauce2;
         private Integer sauce3;
+        private int version;
 }

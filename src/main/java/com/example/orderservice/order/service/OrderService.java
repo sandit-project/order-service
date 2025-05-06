@@ -65,6 +65,10 @@ public class OrderService {
     public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
         log.info("[submitOrder] 요청 들어옴: merchantUid={}, version={}", dto.getMerchantUid(), dto.getVersion());
 
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            return Mono.error(new IllegalArgumentException("주문 항목이 없습니다."));
+        }
+
         if (dto.getVersion() != 0) {
             log.warn("[submitOrder] 대표주문이므로 처리하지 않음: merchantUid={}", dto.getMerchantUid());
             return Mono.empty();
@@ -125,6 +129,7 @@ public class OrderService {
                     .success(true)
                     .message("주문 저장 + 상태 MQ 발행 완료")
                     .orderUid(ordersToSave.get(0).getUid()) // 대표 uid 사용
+                    .orderUids(ordersToSave.stream().map(Order::getUid).toList())
                     .build());
         }));
     }
