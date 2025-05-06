@@ -5,9 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.ToString;
+import lombok.*;
 import org.springframework.data.annotation.Version;
 
 import java.time.LocalDateTime;
@@ -15,6 +13,8 @@ import java.util.List;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @ToString
 //전체 주문 정보
 public class OrderRequestDTO {
@@ -36,6 +36,8 @@ public class OrderRequestDTO {
         @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime reservationDate;
         private boolean paymentSuccess;
+        private int totalPrice;
+        private double calorie;
         @Version
         private int version;
 }
