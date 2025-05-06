@@ -30,6 +30,18 @@ public class OrderController {
                 .switchIfEmpty(Mono.empty());
     }
 
+    @GetMapping("/status/cooking")
+    public Mono<List<DeliveryOrderResponseDTO>> getCookingOrders() {
+        return orderService.getCookingOrders()
+                .collectList();
+    }
+
+    @GetMapping("/status/delivering")
+    public Mono<List<DeliveryOrderResponseDTO>> getDeliveringOrders() {
+        return orderService.getDeliveringOrders()
+                .collectList();
+    }
+
     @GetMapping("/{uid}")
     public Mono<OrderDetailResponseDTO> getOrderByUid(@PathVariable Integer uid) {
         return orderService.getOrderByUid(uid)
