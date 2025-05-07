@@ -9,7 +9,15 @@ import java.time.LocalDateTime;
 public record OrderCreatedMessage (
         String merchantUid,
         OrderStatus status,
-        LocalDateTime createdDate,
-        LocalDateTime reservationDate
+
+        //배달 수락시간, 완료시간
+        LocalDateTime deliveryAcceptTime,
+        LocalDateTime deliveredTime,
+
+        Long riderUserUid,
+        Long riderSocialUid,
+        String addressStart,
+        String addressDestination
+
 ){
 }

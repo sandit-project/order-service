@@ -119,8 +119,8 @@ public class OrderService {
             OrderCreatedMessage msg = OrderCreatedMessage.builder()
                     .merchantUid(dto.getMerchantUid())
                     .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
-                    .createdDate(getNow())
-                    .reservationDate(dto.getReservationDate())
+                    //.createdDate(getNow())
+                    //.reservationDate(dto.getReservationDate())
                     .build();
 
             streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
@@ -218,7 +218,7 @@ public class OrderService {
                     OrderCreatedMessage msg = OrderCreatedMessage.builder()
                             .merchantUid(merchantUid)
                             .status(newStatus)
-                            .createdDate(getNow())
+                            //.createdDate(getNow())
                             .build();
 
                     streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());

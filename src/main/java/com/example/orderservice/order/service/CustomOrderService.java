@@ -32,39 +32,24 @@ public class CustomOrderService {
     }
 
     public Mono<OrderResponseDTO> submitFinalOrder(FinalCustomOrderRequest finalRequestDTO) {
-        OrderRequestDTO orderDTO = finalRequestDTO.getOrderRequestDTO();
-        if (orderDTO.getItems() == null || orderDTO.getItems().isEmpty()) {
-            return Mono.error(new IllegalArgumentException("orderRequestDTO.items 가 비어있습니다."));
-        }
-
         List<CustomOrderRequestDTO> customList = Optional.ofNullable(finalRequestDTO.getCustomOrderRequestDTO())
                 .orElse(Collections.emptyList());
+        if (customList.isEmpty()) {
+            return Mono.error(new IllegalArgumentException("커스텀 옵션이 없습니다."));
+        }
 
-        return txOp.transactional(
-                orderService.submitOrder(orderDTO).flatMap(orderResponse -> {
-                    if (customList.isEmpty()) {
-                        return Mono.just(OrderResponseDTO.builder()
-                                .success(true)
-                                .message("일반 주문만 처리 완료")
-                                .orderUid(orderResponse.getOrderUids().get(0))
-                                .build());
-                    }
-
-                    return saveCustomOrders(customList)
-                            .thenReturn(OrderResponseDTO.builder()
-                                    .success(true)
-                                    .message("최종 주문 및 커스텀 옵션 저장 완료")
-                                    .orderUid(orderResponse.getOrderUids().get(0))
-                                    .build());
-                })
-        );
+        return txOp.transactional(saveCustomOrders(customList))
+                .then(Mono.just(OrderResponseDTO.builder()
+                        .success(true)
+                        .message("커스텀 옵션 저장 완료")
+                        .build()));
     }
 
     private Mono<Void> saveCustomOrders(List<CustomOrderRequestDTO> customList) {
         List<Mono<Void>> inserts = customList.stream()
                 .map(custom -> {
                     CustomOrder entity = CustomOrder.builder()
-                            .uid(custom.getUid())
+                            .uid(custom.getUid())      // 여기 custom.getUid() 는 front에서 넘긴 orders.uid (한 번만 insert 된)
                             .bread(custom.getBread())
                             .material1(custom.getMaterial1())
                             .material2(custom.getMaterial2())
