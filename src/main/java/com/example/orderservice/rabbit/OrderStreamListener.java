@@ -25,60 +25,56 @@ public class OrderStreamListener {
     @Bean
     public Consumer<OrderCreatedMessage> statusChange() {
         return message -> {
-            log.info("Order Message 수신: {}", message);
+            log.info("[statusChange] 상태 메시지 수신: {}", message);
 
-            String bindingName = switch (message.status()) {
-                case PAYMENT_COMPLETED   -> "statusChange-out-0";
-                case ORDER_CONFIRMED     -> "statusChange-out-1";
-                case ORDER_COOKING       -> "statusChange-out-2";
-                case ORDER_DELIVERING    -> "statusChange-out-3";
-                default -> null;
-            };
-
-            String rollbackBinding = switch (message.status()) {
-                case PAYMENT_COMPLETED   -> "orderCreated-out-0";
-                case ORDER_CONFIRMED     -> "statusChange-out-0";
-                case ORDER_COOKING       -> "statusChange-out-1";
-                case ORDER_DELIVERING    -> "statusChange-out-2";
-                default -> null;
-            };
-
-            if (bindingName == null) {
-                log.warn("지원하지 않는 상태입니다: {}", message.status());
-                return;
-            }
-
-            // 업데이트 혹은 저장 처리
             orderService.updateOrderFromMessage(message)
-                    .then(Mono.fromRunnable(() -> sendMessage(bindingName, message)))
                     .onErrorResume(error -> {
-                        log.error("메시지 처리 실패, 롤백 시도:", error);
+                        log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", error.getMessage(), error);
 
-                        if (error instanceof org.springframework.dao.OptimisticLockingFailureException ||
-                                error instanceof IllegalStateException) {
-                            log.warn("치명적인 상태 충돌로 재처리 중단: {}", error.getMessage());
-                            return Mono.empty();
-                        }
+                        String rollbackBinding = switch (message.status()) {
+                            case ORDER_CONFIRMED -> "statusChange-out-0";
+                            case ORDER_COOKING -> "statusChange-out-1";
+                            default -> null;
+                        };
 
                         if (rollbackBinding != null) {
-                            sendMessage(rollbackBinding, message);
+                            return sendToQueue(rollbackBinding, message);
                         }
+
                         return Mono.empty();
                     })
+                    .then(sendToQueueByStatus(message)) // <- 항상 큐 발송 시도
                     .subscribe();
         };
     }
 
+    private Mono<Void> sendToQueueByStatus(OrderCreatedMessage message) {
+        String nextQueue = switch (message.status()) {
+            case PAYMENT_COMPLETED -> "statusChange-out-0";
+            case ORDER_CONFIRMED   -> "statusChange-out-1";
+            case ORDER_COOKING     -> "statusChange-out-2";
+            case ORDER_DELIVERING  -> "statusChange-out-3";
+            default -> null;
+        };
 
-    // StreamBridge 로직을 중복 없이 처리하기 위한 헬퍼
-    private void sendMessage(String destination, OrderCreatedMessage msg) {
-        boolean sent = streamBridge.send(destination,
-                MessageBuilder.withPayload(msg).build()
-        );
-        if (!sent) {
-            log.error("MQ 발행 실패: {}", destination);
+        if (nextQueue != null) {
+            return sendToQueue(nextQueue, message);
         } else {
-            log.info("MQ 발행 성공: {}", destination);
+            log.info("[sendToQueueByStatus] 상태 {}는 전파 없음", message.status());
+            return Mono.empty();
         }
+    }
+
+
+    private Mono<Void> sendToQueue(String destination, OrderCreatedMessage message) {
+        return Mono.fromRunnable(() -> {
+            log.info("→ 큐 전송 시도: {} (status={})", destination, message.status());
+            boolean sent = streamBridge.send(destination, MessageBuilder.withPayload(message).build());
+            if (sent) {
+                log.info("큐 전송 성공: {}", destination);
+            } else {
+                log.error("큐 전송 실패: {}", destination);
+            }
+        });
     }
 }

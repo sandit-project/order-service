@@ -173,11 +173,16 @@ public class OrderService {
                                     .build()
                             ).toList();
 
-                    return txOp.transactional(orderRepository.saveAll(updatedOrders).then());
+                    return txOp.transactional(
+                            orderRepository.saveAll(updatedOrders)
+                                    .doOnNext(order -> log.info("[updateOrderFromMessage] 저장된 주문: uid={}, status={}", order.getUid(), order.getStatus()))
+                                    .then()
+                    );
+
                 })
                 .onErrorResume(e -> {
                     log.error("[updateOrderFromMessage] 주문 상태 변경 실패: {}", e.getMessage(), e);
-                    return Mono.empty();
+                    return Mono.error(e); // 에러를 다시 던져서 상위 로직까지 전파
                 });
     }
 
