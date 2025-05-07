@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -149,5 +150,51 @@ public class OrderController {
                         .build());
     }
 
-}
+    /**
+     * 지점 주문 목록 조회
+     * 예시: GET /orders/store/3?status=PAYMENT_COMPLETED
+     */
+    @GetMapping("/store/{storeUid}")
+    public Mono<StoreOrderListResponseDTO> getByStoreOrder(@PathVariable("storeUid") Integer storeUid,
+                                                           @RequestParam(name = "status", required = false) String status
+    ) {
 
+        return orderService
+                .getStoreOrders(storeUid,status)
+                .collectList()
+                .map(flatList -> {
+                    // merchandUid 별로 그룹핑
+                    Map<String, List<DeliveryOrderResponseDTO>> grouped =
+                            flatList.stream()
+                                    .collect(Collectors.groupingBy(DeliveryOrderResponseDTO::getMerchantUid));
+
+                    // grouped.entrySet()사용
+                    List<StoreOrderResponseDTO> nested = grouped.entrySet().stream()
+                            .map(entry -> {
+                                String merchantUid = entry.getKey();
+                                List<DeliveryOrderResponseDTO> orders = entry.getValue();
+                                //첫 번째 주문 샘플에서 공통 필드 가져오기
+                                DeliveryOrderResponseDTO sample = orders.get(0);
+                                // DTO 빌드
+                                StoreOrderResponseDTO dto = new StoreOrderResponseDTO();
+                                dto.setMerchantUid(merchantUid);
+                                dto.setUserUid(sample.getUserUid());
+                                dto.setCreatedDate(sample.getCreatedDate());
+                                dto.setReservationDate(sample.getReservationDate());
+                                dto.setStatus(sample.getStatus());
+                                dto.setAddressDestination(sample.getAddressDestination());
+                                // items 채우기
+                                List<StoreOrderResponseDTO.ItemResponse> items =
+                                        orders.stream()
+                                              .map(o -> new StoreOrderResponseDTO.ItemResponse(o.getMenuName(), o.getAmount()))
+                                              .collect(Collectors.toList());
+                                dto.setItems(items);
+
+                                return dto;
+                            })
+                            .collect(Collectors.toList());
+                    // 최종 리턴
+                    return new StoreOrderListResponseDTO(nested);
+                });
+    }
+}

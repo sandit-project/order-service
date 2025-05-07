@@ -343,4 +343,13 @@ public class OrderService {
         ).then();
     }
 
+    /**
+     * 지점별·상태별 주문 조회
+     */
+    public Flux<DeliveryOrderResponseDTO> getStoreOrders(Integer storeUid, String status) {
+        // status가 null이면 기본값 PAYMENT_COMPLETED 사용
+        String targetStatus = (status != null ? status : OrderStatus.PAYMENT_COMPLETED.name());
+        return deliveryOrderRepository.getStoreOrdersByStatusAndStoreUid(storeUid, targetStatus);
+    }
+
 }
