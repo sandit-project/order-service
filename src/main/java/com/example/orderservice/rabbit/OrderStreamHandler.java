@@ -1,6 +1,7 @@
 package com.example.orderservice.rabbit;
 
 import com.example.orderservice.event.OrderCreatedMessage;
+import com.example.orderservice.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;

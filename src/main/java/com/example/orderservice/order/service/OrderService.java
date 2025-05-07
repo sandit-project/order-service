@@ -44,10 +44,10 @@ public class OrderService {
         return orderRepository.findById(uid);
     }
 
+    //merchant_uid로 주문 조회
     public Flux<Order> getOrderByMerchantUid(String merchantUid) {
         return orderRepository.findByMerchantUid(merchantUid);
     }
-
 
     // 유저 UID로 주문 전체 조회
     public Flux<Order> findAllByUserUid(Integer userUid) {
@@ -124,8 +124,6 @@ public class OrderService {
             OrderCreatedMessage msg = OrderCreatedMessage.builder()
                     .merchantUid(dto.getMerchantUid())
                     .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
-                    //.createdDate(getNow())
-                    //.reservationDate(dto.getReservationDate())
                     .build();
 
             streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
@@ -139,7 +137,7 @@ public class OrderService {
         }));
     }
 
-    // 업데이트 요청을 queue에서 받음
+    // 일단은 필요X
     public Mono<Void> updateOrderFromMessage(OrderCreatedMessage message) {
         log.info("[updateOrderFromMessage] 상태 업데이트 시작: merchantUid={}, newStatus={}", message.merchantUid(), message.status());
 
@@ -191,7 +189,7 @@ public class OrderService {
                 });
     }
 
-    // 상태 업데이트 (DB에서)
+    // 상태 업데이트
     public Mono<OrderStatusChangeResponseDTO> changeOrderStatus(String merchantUid, OrderStatus newStatus) {
         validateStatusForQueue(newStatus); // MQ 발행 가능한 상태인지 체크
 

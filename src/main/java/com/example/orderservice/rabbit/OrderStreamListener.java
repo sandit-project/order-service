@@ -30,6 +30,14 @@ public class OrderStreamListener {
             orderService.getOrderByMerchantUid(message.merchantUid())
                     .collectList()
                     .flatMap(existingOrders -> {
+                        if (existingOrders.isEmpty()) {
+                            log.warn("[statusChange] 해당 주문 없음: {}", message.merchantUid());
+                            return Mono.empty();
+                        }
+
+                        
+                        // 상태를 바꾸기 전에 갖고 있는 기존 상태
+                        OrderStatus previousStatus = existingOrders.get(0).getStatus();
                         boolean needUpdate = existingOrders.stream()
                                 .anyMatch(order -> order.getStatus() != message.status());
 
@@ -39,38 +47,55 @@ public class OrderStreamListener {
                         }
 
                         return orderService.changeOrderStatus(message.merchantUid(), message.status())
-                                .doOnNext(result -> log.info("[statusChange] 상태 변경 완료: {}", result));
-                    })
-                    .onErrorResume(e -> {
+                                .flatMap(result -> {
+                                    log.info("[statusChange] 상태 변경 완료: {}", result);
+
+                                    if (message.status() == OrderStatus.ORDER_COOKING) {
+                                        return sendToQueue("statusChange-out-3", message); // 딜리버리 큐 전송
+                                    }
+
+                                    return Mono.empty();
+                                })
+                        .onErrorResume(e -> {
                         log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", e.getMessage(), e);
 
-                        String rollbackBinding = switch (message.status()) {
-                            case ORDER_CONFIRMED -> "statusChange-out-0";
-                            case ORDER_COOKING -> "statusChange-out-1";
-                            default -> null;
-                        };
+                            OrderCreatedMessage rollbackMessage = OrderCreatedMessage.builder()
+                                    .status(previousStatus)
+                                    .merchantUid(message.merchantUid())
+                                    .build();
 
-                        if (rollbackBinding != null) {
-                            return sendToQueue(rollbackBinding, message)
-                                    .then(Mono.empty());
-                        }
+                            String rollbackBinding = switch (previousStatus) {
+                                case ORDER_CONFIRMED -> "statusChange-out-1";
+                                case ORDER_COOKING -> "statusChange-out-2";
+                                default -> null;
+                            };
 
-                        return Mono.empty();
+                            if (rollbackBinding != null) {
+                                return sendToQueue(rollbackBinding, rollbackMessage)
+                                        .then(Mono.empty());
+                            }
+
+                            return Mono.empty();
+                        });
                     })
-                    .subscribe();
+                    .subscribe(
+                            null,
+                            e -> log.error("[statusChange] 전체 처리 중 예외 발생: {}", e.getMessage(), e)
+                    );
         };
     }
 
 
     private Mono<Void> sendToQueue(String destination, OrderCreatedMessage message) {
-        return Mono.fromRunnable(() -> {
+        return Mono.fromCallable(() -> {
             log.info("→ 큐 전송 시도: {} (status={})", destination, message.status());
             boolean sent = streamBridge.send(destination, MessageBuilder.withPayload(message).build());
             if (sent) {
                 log.info("큐 전송 성공: {}", destination);
             } else {
-                log.error("큐 전송 실패: {}", destination);
+                throw new IllegalStateException("큐 전송 실패: " + destination);
             }
+            return null;
         });
     }
 }
