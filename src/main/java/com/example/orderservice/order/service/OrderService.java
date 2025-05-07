@@ -105,21 +105,51 @@ public class OrderService {
                 )
                 .toList();
 
-        DeliveryAddress address = new DeliveryAddress(
-                null,
-                dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
-                dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
-                dto.getMerchantUid(),
-                dto.getDeliveryAddress().getAddressStart(),
-                dto.getDeliveryAddress().getAddressStartLat(),
-                dto.getDeliveryAddress().getAddressStartLan(),
-                dto.getDeliveryAddress().getAddressDestination(),
-                dto.getDeliveryAddress().getAddressDestinationLat(),
-                dto.getDeliveryAddress().getAddressDestinationLan()
-        );
+//        DeliveryAddress address = new DeliveryAddress(
+//                null,
+//                dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
+//                dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
+//                dto.getMerchantUid(),
+//                dto.getDeliveryAddress().getAddressStart(),
+//                dto.getDeliveryAddress().getAddressStartLat(),
+//                dto.getDeliveryAddress().getAddressStartLan(),
+//                dto.getDeliveryAddress().getAddressDestination(),
+//                dto.getDeliveryAddress().getAddressDestinationLat(),
+//                dto.getDeliveryAddress().getAddressDestinationLan()
+//        );
 
         return txOp.transactional(
-                orderRepository.saveAll(ordersToSave).then(deliveryAddressRepository.save(address))
+                orderRepository.saveAll(ordersToSave)
+                        // saveAll 완료 후에만 주소 저장 로직 실행
+                        .then(Mono.defer(() -> {
+                            // 클라이언트가 deliveryAddress를 보내지 않았다면 스킵
+                            if (dto.getDeliveryAddress() == null) {
+                                log.info("deliveryAddress 정보 없음, 저장 스킵: merchantUid={}", dto.getMerchantUid());
+                                return Mono.empty();
+                            }
+
+                            // 주소 정보가 있을 때만 DeliveryAddress 엔티티 생성
+                            DeliveryAddress address = new DeliveryAddress(
+                                    null,
+                                    dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
+                                    dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
+                                    dto.getMerchantUid(),
+                                    dto.getDeliveryAddress().getAddressStart(),
+                                    dto.getDeliveryAddress().getAddressStartLat(),
+                                    dto.getDeliveryAddress().getAddressStartLan(),
+                                    dto.getDeliveryAddress().getAddressDestination(),
+                                    dto.getDeliveryAddress().getAddressDestinationLat(),
+                                    dto.getDeliveryAddress().getAddressDestinationLan()
+                            );
+
+                            // 중복 저장 방지를 위해 exists 체크 후 save
+                            return deliveryAddressRepository
+                                    .existsByMerchantUid(dto.getMerchantUid())
+                                    .flatMap(exists -> exists
+                                            ? Mono.empty()
+                                            : deliveryAddressRepository.save(address).then()
+                                    );
+                        }))
         ).then(Mono.defer(() -> {
             OrderCreatedMessage msg = OrderCreatedMessage.builder()
                     .merchantUid(dto.getMerchantUid())
@@ -135,58 +165,6 @@ public class OrderService {
                     .orderUids(ordersToSave.stream().map(Order::getUid).toList())
                     .build());
         }));
-    }
-
-    // 일단은 필요X
-    public Mono<Void> updateOrderFromMessage(OrderCreatedMessage message) {
-        log.info("[updateOrderFromMessage] 상태 업데이트 시작: merchantUid={}, newStatus={}", message.merchantUid(), message.status());
-
-        return orderRepository.findByMerchantUid(message.merchantUid())
-                .collectList()
-                .flatMap(existingOrders -> {
-                    if (existingOrders.isEmpty()) {
-                        log.warn("[updateOrderFromMessage] 주문 없음 → 상태 업데이트 생략 (submitOrder에서 저장해야 함)");
-                        return Mono.empty();
-                    }
-
-                    boolean statusChanged = existingOrders.stream()
-                            .anyMatch(o -> o.getStatus() != message.status());
-
-                    if (!statusChanged) {
-                        log.info("[updateOrderFromMessage] 상태 동일 → 생략");
-                        return Mono.empty();
-                    }
-
-                    List<Order> updatedOrders = existingOrders.stream()
-                            .filter(orig -> orig.getVersion() == 0)
-                            .map(orig -> orig.builder()
-                                    .uid(orig.getUid())
-                                    .userUid(orig.getUserUid())
-                                    .storeUid(orig.getStoreUid())
-                                    .merchantUid(orig.getMerchantUid())
-                                    .menuName(orig.getMenuName())
-                                    .amount(orig.getAmount())
-                                    .price(orig.getPrice())
-                                    .calorie(orig.getCalorie())
-                                    .payment(orig.getPayment())
-                                    .status(message.status())
-                                    .createdDate(orig.getCreatedDate())
-                                    .reservationDate(orig.getReservationDate())
-                                    .version(orig.getVersion())
-                                    .build()
-                            ).toList();
-
-                    return txOp.transactional(
-                            orderRepository.saveAll(updatedOrders)
-                                    .doOnNext(order -> log.info("[updateOrderFromMessage] 저장된 주문: uid={}, status={}", order.getUid(), order.getStatus()))
-                                    .then()
-                    );
-
-                })
-                .onErrorResume(e -> {
-                    log.error("[updateOrderFromMessage] 주문 상태 변경 실패: {}", e.getMessage(), e);
-                    return Mono.error(e); // 에러를 다시 던져서 상위 로직까지 전파
-                });
     }
 
     // 상태 업데이트

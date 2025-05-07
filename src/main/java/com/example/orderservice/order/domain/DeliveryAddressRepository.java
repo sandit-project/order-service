@@ -10,7 +10,5 @@ import java.util.Optional;
 
 @Repository
 public interface DeliveryAddressRepository extends ReactiveCrudRepository<DeliveryAddress, Long> {
-    Mono<DeliveryAddress> findByMerchantUid(String merchantUid);
-
     Mono<Boolean> existsByMerchantUid(String merchantUid);
 }

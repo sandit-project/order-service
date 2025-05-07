@@ -51,7 +51,7 @@ public class OrderStreamListener {
                                     log.info("[statusChange] 상태 변경 완료: {}", result);
 
                                     if (message.status() == OrderStatus.ORDER_COOKING) {
-                                        return sendToQueue("statusChange-out-3", message); // 딜리버리 큐 전송
+                                        return sendToQueue("statusChange-out-2", message); // 딜리버리 큐 전송
                                     }
 
                                     return Mono.empty();
