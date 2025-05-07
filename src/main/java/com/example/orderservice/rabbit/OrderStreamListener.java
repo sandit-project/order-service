@@ -27,9 +27,22 @@ public class OrderStreamListener {
         return message -> {
             log.info("[statusChange] 상태 메시지 수신: {}", message);
 
-            orderService.updateOrderFromMessage(message)
-                    .onErrorResume(error -> {
-                        log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", error.getMessage(), error);
+            orderService.getOrderByMerchantUid(message.merchantUid())
+                    .collectList()
+                    .flatMap(existingOrders -> {
+                        boolean needUpdate = existingOrders.stream()
+                                .anyMatch(order -> order.getStatus() != message.status());
+
+                        if (!needUpdate) {
+                            log.info("[statusChange] 상태 동일 → 처리 생략");
+                            return Mono.empty();
+                        }
+
+                        return orderService.changeOrderStatus(message.merchantUid(), message.status())
+                                .doOnNext(result -> log.info("[statusChange] 상태 변경 완료: {}", result));
+                    })
+                    .onErrorResume(e -> {
+                        log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", e.getMessage(), e);
 
                         String rollbackBinding = switch (message.status()) {
                             case ORDER_CONFIRMED -> "statusChange-out-0";
@@ -38,31 +51,14 @@ public class OrderStreamListener {
                         };
 
                         if (rollbackBinding != null) {
-                            return sendToQueue(rollbackBinding, message);
+                            return sendToQueue(rollbackBinding, message)
+                                    .then(Mono.empty());
                         }
 
                         return Mono.empty();
                     })
-                    .then(sendToQueueByStatus(message)) // <- 항상 큐 발송 시도
                     .subscribe();
         };
-    }
-
-    private Mono<Void> sendToQueueByStatus(OrderCreatedMessage message) {
-        String nextQueue = switch (message.status()) {
-            case PAYMENT_COMPLETED -> "statusChange-out-0";
-            case ORDER_CONFIRMED   -> "statusChange-out-1";
-            case ORDER_COOKING     -> "statusChange-out-2";
-            case ORDER_DELIVERING  -> "statusChange-out-3";
-            default -> null;
-        };
-
-        if (nextQueue != null) {
-            return sendToQueue(nextQueue, message);
-        } else {
-            log.info("[sendToQueueByStatus] 상태 {}는 전파 없음", message.status());
-            return Mono.empty();
-        }
     }
 
 

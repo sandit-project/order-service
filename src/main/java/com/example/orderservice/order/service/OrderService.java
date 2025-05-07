@@ -44,6 +44,11 @@ public class OrderService {
         return orderRepository.findById(uid);
     }
 
+    public Flux<Order> getOrderByMerchantUid(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid);
+    }
+
+
     // 유저 UID로 주문 전체 조회
     public Flux<Order> findAllByUserUid(Integer userUid) {
         return orderRepository.findByUserUid(userUid);
