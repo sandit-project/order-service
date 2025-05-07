@@ -8,6 +8,7 @@ import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private final OrderService orderService;
+    private final StreamBridge streamBridge;
 
     @GetMapping
     public Mono<OrderDetailResponseDTO> getOrders() {

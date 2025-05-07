@@ -55,6 +55,11 @@ public class OrderService {
         return orderRepository.findById(uid);
     }
 
+    //merchant_uid로 주문 조회
+    public Flux<Order> getOrderByMerchantUid(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid);
+    }
+
     // 유저 UID로 주문 전체 조회
     public Flux<Order> findAllByUserUid(Integer userUid) {
         return orderRepository.findByUserUid(userUid);
@@ -130,8 +135,6 @@ public class OrderService {
             OrderCreatedMessage msg = OrderCreatedMessage.builder()
                     .merchantUid(dto.getMerchantUid())
                     .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
-                    .createdDate(getNow())
-                    .reservationDate(dto.getReservationDate())
                     .build();
 
             streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
@@ -145,7 +148,7 @@ public class OrderService {
         }));
     }
 
-    // 업데이트 요청을 queue에서 받음
+    // 일단은 필요X
     public Mono<Void> updateOrderFromMessage(OrderCreatedMessage message) {
         log.info("[updateOrderFromMessage] 상태 업데이트 시작: merchantUid={}, newStatus={}", message.merchantUid(), message.status());
 
@@ -184,15 +187,20 @@ public class OrderService {
                                     .build()
                             ).toList();
 
-                    return txOp.transactional(orderRepository.saveAll(updatedOrders).then());
+                    return txOp.transactional(
+                            orderRepository.saveAll(updatedOrders)
+                                    .doOnNext(order -> log.info("[updateOrderFromMessage] 저장된 주문: uid={}, status={}", order.getUid(), order.getStatus()))
+                                    .then()
+                    );
+
                 })
                 .onErrorResume(e -> {
                     log.error("[updateOrderFromMessage] 주문 상태 변경 실패: {}", e.getMessage(), e);
-                    return Mono.empty();
+                    return Mono.error(e); // 에러를 다시 던져서 상위 로직까지 전파
                 });
     }
 
-    // 상태 업데이트 (DB에서)
+    // 상태 업데이트
     public Mono<OrderStatusChangeResponseDTO> changeOrderStatus(String merchantUid, OrderStatus newStatus) {
         validateStatusForQueue(newStatus); // MQ 발행 가능한 상태인지 체크
 
@@ -229,7 +237,7 @@ public class OrderService {
                     OrderCreatedMessage msg = OrderCreatedMessage.builder()
                             .merchantUid(merchantUid)
                             .status(newStatus)
-                            .createdDate(getNow())
+                            //.createdDate(getNow())
                             .build();
 
                     streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
