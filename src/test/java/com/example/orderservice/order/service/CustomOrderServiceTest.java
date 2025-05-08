@@ -1,6 +1,8 @@
 package com.example.orderservice.order.service;
 
 import com.example.orderservice.order.domain.*;
+import com.example.orderservice.order.model.*;
+import com.example.orderservice.order.model.Order;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -9,6 +11,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -35,12 +38,39 @@ class CustomOrderServiceTest {
 
     @Test
     void 커스텀옵션이_없는경우_저장없이_성공응답() {
+        OrderRequestDTO dummyOrder = OrderRequestDTO.builder()
+                .merchantUid("no-custom-uid")
+                .build();
+
         FinalCustomOrderRequest request = FinalCustomOrderRequest.builder()
+                .orderRequestDTO(dummyOrder)
                 .customOrderRequestDTO(Collections.emptyList())
                 .build();
 
+        when(orderService.getOrderByMerchantUid(anyString()))
+                .thenReturn(Flux.just(Order.builder()
+                        .uid(1)
+                        .menuName("테스트 메뉴")
+                        .price(1000)
+                        .userUid(1)
+                        .storeUid(1)
+                        .merchantUid("no-custom-uid")
+                        .status(OrderStatus.PAYMENT_COMPLETED)
+                        .payment("card")
+                        .amount(1)
+                        .createdDate(LocalDateTime.now())
+                        .calorie(100.0)
+                        .reservationDate(LocalDateTime.now())
+                        .build()
+                ));
+
         StepVerifier.create(customOrderService.submitFinalOrder(request))
-                .expectNextMatches(res -> res.isSuccess() && res.getMessage().equals("커스텀 옵션 저장 완료"))
+                .expectNextMatches(res ->
+                        res.isSuccess() &&
+                                res.getMessage().equals("커스텀 옵션 저장 완료") &&
+                                res.getOrderUid() != null &&
+                                res.getOrderUids() != null
+                )
                 .verifyComplete();
 
         verifyNoInteractions(customOrderRepository);
@@ -50,31 +80,56 @@ class CustomOrderServiceTest {
     void 커스텀옵션이_존재할_경우_DB저장_후_성공응답() {
         CustomOrderRequestDTO dto = CustomOrderRequestDTO.builder()
                 .uid(123)
-                .bread(3) // ← 여긴 enum으로 바꿀 여지 있음
+                .bread(3)
+                .material1(1)
+                .cheese(1)
+                .vegetable1(1)
+                .sauce1(1)
+                .build();
+
+        OrderRequestDTO dummyOrder = OrderRequestDTO.builder()
+                .merchantUid("custom-uid")
                 .build();
 
         FinalCustomOrderRequest request = FinalCustomOrderRequest.builder()
+                .orderRequestDTO(dummyOrder)
                 .customOrderRequestDTO(List.of(dto))
                 .build();
 
         when(customOrderRepository.save(any(CustomOrder.class)))
-                .thenReturn(Mono.just(CustomOrder.builder()
-                        .uid(123)
-                        .bread(1)
-                        .material1(2)     // 필수
-                        .cheese(1)    // 필수
-                        .vegetable1(2)      // 필수
-                        .sauce1(1)     // 필수
-                        .build()));
+                .thenReturn(Mono.just(CustomOrder.builder().uid(123).bread(1).build()));
+
         when(txOp.transactional(any(Mono.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
+        when(orderService.getOrderByMerchantUid("custom-uid"))
+                .thenReturn(Flux.just(Order.builder()
+                        .uid(123)
+                        .menuName("테스트 메뉴")
+                        .price(1000)
+                        .userUid(1)
+                        .storeUid(1)
+                        .merchantUid("custom-uid")
+                        .status(OrderStatus.PAYMENT_COMPLETED)
+                        .payment("card")
+                        .amount(1)
+                        .createdDate(LocalDateTime.now())
+                        .calorie(100.0)
+                        .reservationDate(LocalDateTime.now())
+                        .build()));
+
         StepVerifier.create(customOrderService.submitFinalOrder(request))
-                .expectNextMatches(res -> res.isSuccess() && res.getMessage().equals("커스텀 옵션 저장 완료"))
+                .expectNextMatches(res ->
+                        res.isSuccess() &&
+                                res.getMessage().equals("커스텀 옵션 저장 완료") &&
+                                res.getOrderUid() == 123 &&
+                                res.getOrderUids().contains(123)
+                )
                 .verifyComplete();
 
         verify(customOrderRepository, times(1)).save(any(CustomOrder.class));
     }
+
 
     @Test
     void 전체_주문_조회() {
