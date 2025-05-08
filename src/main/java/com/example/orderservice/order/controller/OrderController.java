@@ -160,15 +160,25 @@ public class OrderController {
     public Mono<StoreOrderListResponseDTO> getByStoreOrder(@PathVariable("storeUid") Integer storeUid,
                                                            @RequestParam(name = "status", required = false) String status
     ) {
+        // 요청 파라미터 로깅
+        log.info("▶ getByStoreOrder 호출 – storeUid: {}, status: {}", storeUid, status);
+
 
         return orderService
-                .getStoreOrders(storeUid,status)
+                .getStoreOrders(storeUid, status)
+                // 주문 단일 DTO 스트림 단계 로깅 (디버그 레벨)
+                .doOnNext(o -> log.debug("   ▶ 페이로드: merchantUid={}, menu={}, amount={}",
+                        o.getMerchantUid(), o.getMenuName(), o.getAmount()))
                 .collectList()
+                // 전체 주문 개수 로깅
+                .doOnNext(list -> log.info("   ▶ 조회된 주문 개수: {}", list.size()))
                 .map(flatList -> {
                     // merchandUid 별로 그룹핑
                     Map<String, List<DeliveryOrderResponseDTO>> grouped =
                             flatList.stream()
                                     .collect(Collectors.groupingBy(DeliveryOrderResponseDTO::getMerchantUid));
+
+                    log.info("   ▶ merchantUid 그룹 수: {}", grouped.size());
 
                     // grouped.entrySet()사용
                     List<StoreOrderResponseDTO> nested = grouped.entrySet().stream()
@@ -188,15 +198,22 @@ public class OrderController {
                                 // items 채우기
                                 List<StoreOrderResponseDTO.ItemResponse> items =
                                         orders.stream()
-                                              .map(o -> new StoreOrderResponseDTO.ItemResponse(o.getMenuName(), o.getAmount()))
-                                              .collect(Collectors.toList());
+                                                .map(o -> new StoreOrderResponseDTO.ItemResponse(o.getMenuName(), o.getAmount()))
+                                                .collect(Collectors.toList());
                                 dto.setItems(items);
+
+                                log.debug("   ▶ 생성된 StoreOrderResponseDTO – merchantUid={}, itemsCount={}",
+                                        merchantUid, items.size());
 
                                 return dto;
                             })
                             .collect(Collectors.toList());
                     // 최종 리턴
                     return new StoreOrderListResponseDTO(nested);
+
                 });
+
     }
+
 }
+
