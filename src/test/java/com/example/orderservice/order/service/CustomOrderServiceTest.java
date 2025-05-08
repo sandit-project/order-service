@@ -1,70 +1,98 @@
-//package com.example.orderservice.order.service;
-//
-//import com.example.orderservice.order.domain.*;
-//import com.example.orderservice.order.service.CustomOrderService;
-//import com.example.orderservice.order.service.OrderService;
-//import org.junit.jupiter.api.BeforeEach;
-//import org.junit.jupiter.api.Test;
-//import org.mockito.InjectMocks;
-//import org.mockito.Mock;
-//import reactor.core.publisher.Flux;
-//import reactor.core.publisher.Mono;
-//import reactor.test.StepVerifier;
-//
-//import static org.mockito.Mockito.*;
-//import static org.junit.jupiter.api.Assertions.*;
-//
-//class CustomOrderServiceTest {
-//
-//    private CustomOrderRepository customOrderRepository;
-//    private OrderService orderService;
-//    private CustomOrderService customOrderService;
-//
-//    @BeforeEach
-//    void setUp() {
-//        customOrderRepository = mock(CustomOrderRepository.class);
-//        orderService = mock(OrderService.class);
-//        customOrderService = new CustomOrderService(customOrderRepository, orderService);
-//    }
-//
-//    @Test
-//    void 필수값_누락시_에러반환() {
-//        CustomOrderRequestDTO invalidRequest = CustomOrderRequestDTO.builder()
-//                .bread(null)
-//                .material1(null)
-//                .vegetable1(null)
-//                .sauce1(null)
-//                .build();
-//
-//        Mono<OrderResponseDTO> responseMono = customOrderService.submitCustomOrder(invalidRequest);
-//        StepVerifier.create(responseMono)
-//                .assertNext(response -> {
-//                    assertFalse(response.isSuccess());
-//                    assertEquals("필수 커스텀 정보 누락: bread, material1, vegetable1, sauce1은 필수입니다.", response.getMessage());
-//                })
-//                .verifyComplete();
-//    }
-//
-//    @Test
-//    void 정상_커스텀주문_성공() {
-//        // 내부적으로 주문 생성은 orderService.submitOrder()를 호출하지만,
-//        // 키오스크 방식에서는 커스텀 옵션만 저장하므로, orderRequestDTO는 사용하지 않음.
-//        CustomOrderRequestDTO request = CustomOrderRequestDTO.builder()
-//                .bread(1)
-//                .material1(2)
-//                .vegetable1(3)
-//                .sauce1(4)
-//                .build();
-//
-//        when(customOrderRepository.save(any(CustomOrder.class)))
-//                .thenReturn(Mono.just(new CustomOrder(1, 1, 2, 3, null, null, null, null, null, null, null, null, null, null, 4, null, null, 1)));
-//
-//        Mono<OrderResponseDTO> responseMono = customOrderService.submitCustomOrder(request);
-//        StepVerifier.create(responseMono)
-//                .assertNext(response -> {
-//                    assertTrue(response.isSuccess());
-//                    assertEquals("커스텀 주문 옵션 저장 성공. (추후 주문 생성 시 연동 필요)", response.getMessage());
-//                })
-//                .verifyComplete();
-//    }
-//}
+package com.example.orderservice.order.service;
+
+import com.example.orderservice.order.domain.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+import org.springframework.transaction.reactive.TransactionalOperator;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
+
+import java.util.Collections;
+import java.util.List;
+
+import static org.mockito.Mockito.*;
+
+class CustomOrderServiceTest {
+
+    @Mock
+    private CustomOrderRepository customOrderRepository;
+
+    @Mock
+    private OrderService orderService;
+
+    @Mock
+    private TransactionalOperator txOp;
+
+    @InjectMocks
+    private CustomOrderService customOrderService;
+
+    @BeforeEach
+    void 설정() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void 커스텀옵션이_없는경우_저장없이_성공응답() {
+        FinalCustomOrderRequest request = FinalCustomOrderRequest.builder()
+                .customOrderRequestDTO(Collections.emptyList())
+                .build();
+
+        StepVerifier.create(customOrderService.submitFinalOrder(request))
+                .expectNextMatches(res -> res.isSuccess() && res.getMessage().equals("커스텀 옵션 저장 완료"))
+                .verifyComplete();
+
+        verifyNoInteractions(customOrderRepository);
+    }
+
+    @Test
+    void 커스텀옵션이_존재할_경우_DB저장_후_성공응답() {
+        CustomOrderRequestDTO dto = CustomOrderRequestDTO.builder()
+                .uid(123)
+                .bread(3) // ← 여긴 enum으로 바꿀 여지 있음
+                .build();
+
+        FinalCustomOrderRequest request = FinalCustomOrderRequest.builder()
+                .customOrderRequestDTO(List.of(dto))
+                .build();
+
+        when(customOrderRepository.save(any(CustomOrder.class)))
+                .thenReturn(Mono.just(CustomOrder.builder()
+                        .uid(123)
+                        .bread(1)
+                        .material1(2)     // 필수
+                        .cheese(1)    // 필수
+                        .vegetable1(2)      // 필수
+                        .sauce1(1)     // 필수
+                        .build()));
+        when(txOp.transactional(any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        StepVerifier.create(customOrderService.submitFinalOrder(request))
+                .expectNextMatches(res -> res.isSuccess() && res.getMessage().equals("커스텀 옵션 저장 완료"))
+                .verifyComplete();
+
+        verify(customOrderRepository, times(1)).save(any(CustomOrder.class));
+    }
+
+    @Test
+    void 전체_주문_조회() {
+        CustomOrder mockOrder = CustomOrder.builder().uid(1).bread(2).build();
+        when(customOrderRepository.findAll()).thenReturn(Flux.just(mockOrder));
+
+        StepVerifier.create(customOrderService.findAllOrders())
+                .expectNext(mockOrder)
+                .verifyComplete();
+    }
+
+    @Test
+    void 주문_uid_조회() {
+        CustomOrder mockOrder = CustomOrder.builder().uid(42).bread(1).build();
+        when(customOrderRepository.findById(42)).thenReturn(Mono.just(mockOrder));
+
+        StepVerifier.create(customOrderService.findByUid(42))
+                .expectNext(mockOrder)
+                .verifyComplete();
+    }
+}

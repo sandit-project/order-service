@@ -31,25 +31,31 @@ public class CustomOrderService {
         return customOrderRepository.findById(uid);
     }
 
+
     public Mono<OrderResponseDTO> submitFinalOrder(FinalCustomOrderRequest finalRequestDTO) {
         List<CustomOrderRequestDTO> customList = Optional.ofNullable(finalRequestDTO.getCustomOrderRequestDTO())
                 .orElse(Collections.emptyList());
-        if (customList.isEmpty()) {
-            return Mono.error(new IllegalArgumentException("커스텀 옵션이 없습니다."));
-        }
 
-        return txOp.transactional(saveCustomOrders(customList))
-                .then(Mono.just(OrderResponseDTO.builder()
-                        .success(true)
-                        .message("커스텀 옵션 저장 완료")
-                        .build()));
+        return (customList.isEmpty() ? Mono.empty() : txOp.transactional(saveCustomOrders(customList)))
+                .then(orderService.getOrderByMerchantUid(finalRequestDTO.getOrderRequestDTO().getMerchantUid())
+                        .collectList()
+                        .map(savedOrders -> OrderResponseDTO.builder()
+                                .success(true)
+                                .message("커스텀 옵션 저장 완료")
+                                .orderUid(savedOrders.get(0).getUid())
+                                .orderUids(savedOrders.stream()
+                                        .map(order -> order.getUid())
+                                        .toList())
+                                .build()));
+
     }
+
 
     private Mono<Void> saveCustomOrders(List<CustomOrderRequestDTO> customList) {
         List<Mono<Void>> inserts = customList.stream()
                 .map(custom -> {
                     CustomOrder entity = CustomOrder.builder()
-                            .uid(custom.getUid())      // 여기 custom.getUid() 는 front에서 넘긴 orders.uid (한 번만 insert 된)
+                            .uid(custom.getUid())      // front에서 넘긴 orders.uid
                             .bread(custom.getBread())
                             .material1(custom.getMaterial1())
                             .material2(custom.getMaterial2())
