@@ -116,66 +116,53 @@ public class OrderService {
                 )
                 .toList();
 
-//        DeliveryAddress address = new DeliveryAddress(
-//                null,
-//                dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
-//                dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
-//                dto.getMerchantUid(),
-//                dto.getDeliveryAddress().getAddressStart(),
-//                dto.getDeliveryAddress().getAddressStartLat(),
-//                dto.getDeliveryAddress().getAddressStartLan(),
-//                dto.getDeliveryAddress().getAddressDestination(),
-//                dto.getDeliveryAddress().getAddressDestinationLat(),
-//                dto.getDeliveryAddress().getAddressDestinationLan()
-//        );
-
         return txOp.transactional(
                 orderRepository.saveAll(ordersToSave)
-                        // saveAll 완료 후에만 주소 저장 로직 실행
-                        .then(Mono.defer(() -> {
-                            // 클라이언트가 deliveryAddress를 보내지 않았다면 스킵
-                            if (dto.getDeliveryAddress() == null) {
-                                log.info("deliveryAddress 정보 없음, 저장 스킵: merchantUid={}", dto.getMerchantUid());
-                                return Mono.empty();
-                            }
-
-                            // 주소 정보가 있을 때만 DeliveryAddress 엔티티 생성
-                            DeliveryAddress address = new DeliveryAddress(
-                                    null,
-                                    dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
-                                    dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
-                                    dto.getMerchantUid(),
-                                    dto.getDeliveryAddress().getAddressStart(),
-                                    dto.getDeliveryAddress().getAddressStartLat(),
-                                    dto.getDeliveryAddress().getAddressStartLan(),
-                                    dto.getDeliveryAddress().getAddressDestination(),
-                                    dto.getDeliveryAddress().getAddressDestinationLat(),
-                                    dto.getDeliveryAddress().getAddressDestinationLan()
-                            );
-
-                            // 중복 저장 방지를 위해 exists 체크 후 save
-                            return deliveryAddressRepository
-                                    .existsByMerchantUid(dto.getMerchantUid())
-                                    .flatMap(exists -> exists
-                                            ? Mono.empty()
-                                            : deliveryAddressRepository.save(address).then()
-                                    );
-                        }))
-        ).then(Mono.defer(() -> {
+                        .collectList()
+                        .flatMap(savedOrders -> {
+                            return handleDeliveryAddressIfPresent(dto)
+                                    .thenReturn(savedOrders);
+                        })
+        ).flatMap(savedOrders -> {
+            // MQ 발행
             OrderCreatedMessage msg = OrderCreatedMessage.builder()
                     .merchantUid(dto.getMerchantUid())
                     .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
                     .build();
-
             streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
 
+            // 응답에 진짜 uid들 넣기
             return Mono.just(OrderResponseDTO.builder()
                     .success(true)
                     .message("주문 저장 + 상태 MQ 발행 완료")
-                    .orderUid(ordersToSave.get(0).getUid()) // 대표 uid 사용
-                    .orderUids(ordersToSave.stream().map(Order::getUid).toList())
+                    .orderUid(savedOrders.get(0).getUid()) // ✅ 진짜 uid
+                    .orderUids(savedOrders.stream().map(Order::getUid).toList())
                     .build());
-        }));
+        });
+
+    }
+
+    private Mono<Void> handleDeliveryAddressIfPresent(OrderRequestDTO dto) {
+        if (dto.getDeliveryAddress() == null) {
+            log.info("deliveryAddress 정보 없음, 저장 스킵: merchantUid={}", dto.getMerchantUid());
+            return Mono.empty();
+        }
+
+        DeliveryAddress address = new DeliveryAddress(
+                null,
+                dto.getUserUid() != null ? Long.valueOf(dto.getUserUid()) : null,
+                dto.getSocialUid() != null ? Long.valueOf(dto.getSocialUid()) : null,
+                dto.getMerchantUid(),
+                dto.getDeliveryAddress().getAddressStart(),
+                dto.getDeliveryAddress().getAddressStartLat(),
+                dto.getDeliveryAddress().getAddressStartLan(),
+                dto.getDeliveryAddress().getAddressDestination(),
+                dto.getDeliveryAddress().getAddressDestinationLat(),
+                dto.getDeliveryAddress().getAddressDestinationLan()
+        );
+
+        return deliveryAddressRepository.existsByMerchantUid(dto.getMerchantUid())
+                .flatMap(exists -> exists ? Mono.empty() : deliveryAddressRepository.save(address).then());
     }
 
     // 상태 업데이트
@@ -215,7 +202,6 @@ public class OrderService {
                     OrderCreatedMessage msg = OrderCreatedMessage.builder()
                             .merchantUid(merchantUid)
                             .status(newStatus)
-                            //.createdDate(getNow())
                             .build();
 
                     streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
