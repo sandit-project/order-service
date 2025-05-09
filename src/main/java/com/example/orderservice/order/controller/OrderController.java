@@ -3,12 +3,16 @@ package com.example.orderservice.order.controller;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.service.OrderService;
+import com.example.orderservice.payment.CancelPaymentRequestDTO;
+import com.example.orderservice.payment.CancelPaymentResponseDTO;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -151,6 +155,28 @@ public class OrderController {
                         .message("주문 실패!")
                         .build());
     }
+
+    @PostMapping("/payments/cancel")
+    public Mono<ResponseEntity<CancelPaymentResponseDTO>> cancelPayment(
+            @RequestBody CancelPaymentRequestDTO dto
+    ) {
+        return orderService.cancelOrderPayment(dto.getMerchantUid())
+                .map(resp -> {
+                    HttpStatus status = resp.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+                    return ResponseEntity.status(status).body(resp);
+                })
+                .onErrorResume(e -> {
+                    log.error("주문 취소 중 오류 발생 (merchantUid={}): {}", dto.getMerchantUid(), e.getMessage(), e);
+                    CancelPaymentResponseDTO fallback = CancelPaymentResponseDTO.builder()
+                            .success(false)
+                            .message("결제 취소 처리 중 오류가 발생했습니다.")
+                            .build();
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(fallback));
+                });
+    }
+
+
+
 
     /**
      * 지점 주문 목록 조회

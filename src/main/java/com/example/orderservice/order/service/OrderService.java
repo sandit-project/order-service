@@ -4,6 +4,8 @@ import com.example.orderservice.event.OrderCreatedMessage;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
+import com.example.orderservice.payment.CancelPaymentResponseDTO;
+import com.example.orderservice.payment.PaymentService;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class OrderService {
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
+    private final PaymentService paymentService;
     private final StreamBridge streamBridge;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
@@ -260,6 +264,7 @@ public class OrderService {
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
         return txOp.execute(tx ->
                 orderRepository.findByMerchantUid(merchantUid)
+                        .filter(o -> o.getVersion() == 0)
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid)))
                         .flatMap(orig -> {
 
@@ -314,6 +319,43 @@ public class OrderService {
                         .then(orderRepository.deleteRepresentativeOrder(merchantUid))
         ).then();
     }
+
+    public Mono<CancelPaymentResponseDTO> cancelOrderPayment(String merchantUid) {
+        return paymentService.cancelPayment(merchantUid)
+                .flatMap(resp -> {
+                    if (!resp.isSuccess()) {
+                        // 취소 API 실패하면 바로 반환
+                        return Mono.just(resp);
+                    }
+                    // DB에서 주문들 조회
+                    return orderRepository.findByMerchantUid(merchantUid)
+                            .collectList()
+                            .flatMap(orders -> {
+                                if (orders.isEmpty()) {
+                                    return Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다: " + merchantUid));
+                                }
+                                // 상태 변경
+                                List<Order> cancelled = orders.stream()
+                                        .map(o -> o.builder()
+                                                .status(OrderStatus.ORDER_CANCELLED)
+                                                .build())
+                                        .collect(Collectors.toList());
+                                // 저장
+                                return orderRepository.saveAll(cancelled).collectList();
+                            })
+                            .then(Mono.defer(() -> {
+                                // (선택) MQ로 “취소됨” 상태 발행
+                                OrderCreatedMessage msg = OrderCreatedMessage.builder()
+                                        .merchantUid(merchantUid)
+                                        .status(OrderStatus.ORDER_CANCELLED)
+                                        .build();
+                                streamBridge.send("orderCreated-out-0", msg);
+                                return Mono.just(resp);
+                            }));
+                });
+    }
+
+
 
     /**
      * 지점별·상태별 주문 조회
