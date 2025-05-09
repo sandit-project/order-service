@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -133,11 +132,11 @@ public class DeliveryOrderRepository {
                 da.address_destination AS addressDestination,
                 da.address_destination_lat AS addressDestinationLat,
                 da.address_destination_lan AS addressDestinationLan
-            FROM delivery_address da
-            LEFT JOIN orders o
+            FROM orders o
+            LEFT JOIN delivery_address da
               ON da.merchant_uid = o.merchant_uid
             WHERE o.store_uid = :storeUid
-              AND o.status    = :status
+              AND (:status IS NULL OR o.status = :status)
             ORDER BY o.created_date ASC
         """)
                 .bind("storeUid", storeUid)
@@ -147,7 +146,7 @@ public class DeliveryOrderRepository {
                     dto.setUid(row.get("uid", Long.class));
                     dto.setUserUid(row.get("userUid", Long.class));
                     dto.setSocialUid(row.get("socialUid", Long.class));
-                    dto.setStoreUid(row.get("storeUid", Long.class));
+                    dto.setStoreUid(Long.valueOf(row.get("storeUid", Integer.class)));
                     dto.setMerchantUid(row.get("merchantUid", String.class));
                     dto.setMenuName(row.get("menuName", String.class));
                     dto.setAmount(row.get("amount", Integer.class));
