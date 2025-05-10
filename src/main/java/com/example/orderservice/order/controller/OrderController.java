@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -156,24 +157,30 @@ public class OrderController {
                         .build());
     }
 
-    @PostMapping("/payments/cancel")
-    public Mono<ResponseEntity<CancelPaymentResponseDTO>> cancelPayment(
-            @RequestBody CancelPaymentRequestDTO dto
-    ) {
-        return orderService.cancelOrderPayment(dto.getMerchantUid())
+    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<CancelPaymentResponseDTO>> cancelPayment(@RequestBody CancelPaymentRequestDTO dto) {
+        log.info("[cancelPayment] 요청 도착: merchantUid={}, reason={}", dto.getMerchantUid(), dto.getReason());
+
+        return orderService.cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
                 .map(resp -> {
-                    HttpStatus status = resp.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
-                    return ResponseEntity.status(status).body(resp);
+                    log.info("[cancelPayment] 응답 전송: {}", resp);
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(resp);
                 })
-                .onErrorResume(e -> {
-                    log.error("주문 취소 중 오류 발생 (merchantUid={}): {}", dto.getMerchantUid(), e.getMessage(), e);
-                    CancelPaymentResponseDTO fallback = CancelPaymentResponseDTO.builder()
-                            .success(false)
-                            .message("결제 취소 처리 중 오류가 발생했습니다.")
-                            .build();
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(fallback));
+                .defaultIfEmpty(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(CancelPaymentResponseDTO.builder()
+                                .success(false)
+                                .message("환불 처리 응답이 없습니다.")
+                                .build()))
+                .onErrorResume(ex -> {
+                    log.error("[cancelPayment] 예외 발생", ex);
+                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(CancelPaymentResponseDTO.builder()
+                                    .success(false)
+                                    .message("결제 취소 실패: " + ex.getMessage())
+                                    .build()));
                 });
     }
+
 
 
 

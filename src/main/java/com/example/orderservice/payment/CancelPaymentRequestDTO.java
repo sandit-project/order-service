@@ -11,4 +11,5 @@ import lombok.ToString;
 public class CancelPaymentRequestDTO {
     @NotBlank
     private String merchantUid;
+    private String reason;
 }
