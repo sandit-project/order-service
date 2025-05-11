@@ -3,13 +3,21 @@ package com.example.orderservice.order.controller;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.service.OrderService;
+import com.example.orderservice.payment.CancelPaymentRequestDTO;
+import com.example.orderservice.payment.CancelPaymentResponseDTO;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -52,12 +60,22 @@ public class OrderController {
     }
 
     @GetMapping("/user/{userUid}")
-    public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(@PathVariable Integer userUid) {
+    public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(
+            @PathVariable Integer userUid,
+            @AuthenticationPrincipal Jwt principal // JWT에서 uid 추출
+    ) {
+        Integer authUserUid = ((Number) principal.getClaim("uid")).intValue();
+
+        if (!userUid.equals(authUserUid)) {
+            return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."));
+        }
+
         log.info("findAllByUserUid: {}", userUid);
         return orderService.findAllByUserUid(userUid)
                 .map(this::convertToSingleDetailDTO)
                 .collectList();
     }
+
 
     //결제 준비
     @PostMapping("/prepare")
@@ -151,6 +169,34 @@ public class OrderController {
                         .message("주문 실패!")
                         .build());
     }
+
+    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<CancelPaymentResponseDTO>> cancelPayment(@RequestBody CancelPaymentRequestDTO dto) {
+        log.info("[cancelPayment] 요청 도착: merchantUid={}, reason={}", dto.getMerchantUid(), dto.getReason());
+
+        return orderService.cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
+                .map(resp -> {
+                    log.info("[cancelPayment] 응답 전송: {}", resp);
+                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(resp);
+                })
+                .defaultIfEmpty(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(CancelPaymentResponseDTO.builder()
+                                .success(false)
+                                .message("환불 처리 응답이 없습니다.")
+                                .build()))
+                .onErrorResume(ex -> {
+                    log.error("[cancelPayment] 예외 발생", ex);
+                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(CancelPaymentResponseDTO.builder()
+                                    .success(false)
+                                    .message("결제 취소 실패: " + ex.getMessage())
+                                    .build()));
+                });
+    }
+
+
+
+
 
     /**
      * 지점 주문 목록 조회

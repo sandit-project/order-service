@@ -2,12 +2,14 @@ package com.example.orderservice.order.domain;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
 @Builder
+@ToString
 //주문 정보 확인 DTO
 public class OrderDetailResponseDTO {
     private Integer uid;
