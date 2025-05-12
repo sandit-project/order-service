@@ -24,160 +24,62 @@ import java.util.function.Consumer;
 public class OrderStreamListener {
 
     private final OrderService orderService;
-    private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
 
+    // 상태 변경 메시지 수신 처리 + 실패 시 롤백
     @Bean
     public Consumer<OrderCreatedMessage> statusChange() {
         return message -> {
             log.info("[statusChange] 상태 메시지 수신: {}", message);
 
-            // 배송주소 저장 (OrderCreatedMessage 이벤트 처리 시)
-            if (message.addressStart() != null && message.addressDestination() != null) {
-                DeliveryAddress entity = new DeliveryAddress();
-                entity.setMerchantUid(message.merchantUid());
-                entity.setAddressStart(message.addressStart());
-                entity.setAddressDestination(message.addressDestination());
-
-                deliveryAddressRepository.save(entity)
-                        .doOnSuccess(saved -> log.info("[statusChange] 배송주소 저장 완료: uid={}", saved.getUid()))
-                        .onErrorResume(DataIntegrityViolationException.class, ex -> {
-                            log.warn("[statusChange] 주소 저장 스킵(위도·경도 정보 없음): merchantUid={}", message.merchantUid(), ex);
-                            return Mono.empty();
-                        })
-                        // 그 외 예외만 보상 트랜잭션으로 연결
-                        .doOnError(err -> {
-                            log.error("[statusChange] 배송주소 저장 중 치명적 오류, 보상 트랜잭션 수행", err);
-                            orderService.cancelOrderPayment(message.merchantUid(), "배송주소 저장 실패 보상")
-                                    .subscribe(
-                                            resp -> log.info("[statusChange] 보상 결제취소 완료: {}", resp),
-                                            cErr -> log.error("[statusChange] 보상 결제취소 실패", cErr)
-                                    );
-                        })
-                        .subscribe();
-            }
-
-            // 주문 상태 변경 로직
             orderService.getOrderByMerchantUid(message.merchantUid())
                     .collectList()
-                    .flatMap(existingOrders -> {
-                        if (existingOrders.isEmpty()) {
-                            log.warn("[statusChange] 해당 주문 없음: {}", message.merchantUid());
+                    .flatMap(orders -> {
+                        if (orders.isEmpty()) {
+                            log.warn("해당 merchantUid 주문 없음: {}", message.merchantUid());
                             return Mono.empty();
                         }
 
-                        OrderStatus previousStatus = existingOrders.get(0).getStatus();
-                        boolean needUpdate = existingOrders.stream()
-                                .anyMatch(order -> order.getStatus() != message.status());
+                        OrderStatus currentStatus = orders.get(0).getStatus();
+                        OrderStatus targetStatus = message.status();
 
-                        if (!needUpdate) {
+                        if (currentStatus == targetStatus) {
                             log.info("[statusChange] 상태 동일 → 처리 생략");
                             return Mono.empty();
                         }
 
-                        return orderService.changeOrderStatus(message.merchantUid(), message.status())
-                                .flatMap(result -> {
-                                    log.info("[statusChange] 상태 변경 완료: {}", result);
-
-                                    if (message.status() == OrderStatus.ORDER_COOKING) {
-                                        return sendToQueue("statusChange-out-2", message);
-                                    }
-
-                                    return Mono.empty();
-                                })
-                                .onErrorResume(e -> {
-                                    log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", e.getMessage(), e);
-
-                                    OrderCreatedMessage rollbackMessage = OrderCreatedMessage.builder()
-                                            .merchantUid(message.merchantUid())
-                                            .status(previousStatus)
-                                            .build();
-
-                                    String rollbackBinding = switch (previousStatus) {
-                                        case ORDER_CONFIRMED -> "statusChange-out-1";
-                                        case ORDER_COOKING -> "statusChange-out-2";
-                                        default -> null;
-                                    };
-
-                                    if (rollbackBinding != null) {
-                                        return sendToQueue(rollbackBinding, rollbackMessage)
-                                                .then(Mono.empty());
-                                    }
-
-                                    return Mono.empty();
-                                });
+                        return orderService.changeOrderStatus(message.merchantUid(), targetStatus);
                     })
-                    .subscribe(
-                            null,
-                            e -> log.error("[statusChange] 전체 처리 중 예외 발생: {}", e.getMessage(), e)
-                    );
+                    .onErrorResume(e -> {
+                        log.error("[statusChange] 상태 처리 실패 → 롤백 진행: {}", e);
+
+                        OrderStatus rollbackStatus = determineRollbackStatus(message.status());
+                        if (rollbackStatus == null) {
+                            log.warn("[statusChange] 롤백 대상 아님 → 종료");
+                            return Mono.empty();
+                        }
+
+                        // 이 부분을 return X → subscribe()로 실행
+                        orderService.updateStatusWithRollback(message.merchantUid(), rollbackStatus, message.status())
+                                .doOnError(rollbackError -> log.error("롤백 처리 중 에러 발생", rollbackError))
+                                .subscribe(); //직접 구독해줘야 실행
+
+                        return Mono.empty(); // 원래 체인에는 영향 안 줌
+                    })
+                    .subscribe();
         };
     }
 
-//    @Bean
-//    public Consumer<OrderCreatedMessage> statusChange() {
-//        return message -> {
-//            log.info("[statusChange] 상태 메시지 수신: {}", message);
-//
-//            orderService.getOrderByMerchantUid(message.merchantUid())
-//                    .collectList()
-//                    .flatMap(existingOrders -> {
-//                        if (existingOrders.isEmpty()) {
-//                            log.warn("[statusChange] 해당 주문 없음: {}", message.merchantUid());
-//                            return Mono.empty();
-//                        }
-//
-//
-//                        // 상태를 바꾸기 전에 갖고 있는 기존 상태
-//                        OrderStatus previousStatus = existingOrders.get(0).getStatus();
-//                        boolean needUpdate = existingOrders.stream()
-//                                .anyMatch(order -> order.getStatus() != message.status());
-//
-//                        if (!needUpdate) {
-//                            log.info("[statusChange] 상태 동일 → 처리 생략");
-//                            return Mono.empty();
-//                        }
-//
-//                        return orderService.changeOrderStatus(message.merchantUid(), message.status())
-//                                .flatMap(result -> {
-//                                    log.info("[statusChange] 상태 변경 완료: {}", result);
-//
-//                                    if (message.status() == OrderStatus.ORDER_COOKING) {
-//                                        return sendToQueue("statusChange-out-2", message); // 딜리버리 큐 전송
-//                                    }
-//
-//                                    return Mono.empty();
-//                                })
-//                        .onErrorResume(e -> {
-//                        log.error("[statusChange] 상태 처리 실패, 롤백 시도: {}", e.getMessage(), e);
-//
-//                            OrderCreatedMessage rollbackMessage = OrderCreatedMessage.builder()
-//                                    .status(previousStatus)
-//                                    .merchantUid(message.merchantUid())
-//                                    .build();
-//
-//                            String rollbackBinding = switch (previousStatus) {
-//                                case ORDER_CONFIRMED -> "statusChange-out-1";
-//                                case ORDER_COOKING -> "statusChange-out-2";
-//                                default -> null;
-//                            };
-//
-//                            if (rollbackBinding != null) {
-//                                return sendToQueue(rollbackBinding, rollbackMessage)
-//                                        .then(Mono.empty());
-//                            }
-//
-//                            return Mono.empty();
-//                        });
-//                    })
-//                    .subscribe(
-//                            null,
-//                            e -> log.error("[statusChange] 전체 처리 중 예외 발생: {}", e.getMessage(), e)
-//                    );
-//        };
-//    }
+    // 상태 변경 실패 시 롤백 대상 상태 계산 (e.g., delivered → delivering)
+    private OrderStatus determineRollbackStatus(OrderStatus failedStatus) {
+        return switch (failedStatus) {
+            case ORDER_DELIVERED -> OrderStatus.ORDER_DELIVERING;
+            case ORDER_DELIVERING -> OrderStatus.ORDER_COOKING;
+            default -> null;
+        };
+    }
 
-
+    // 특정 큐(destination)로 메시지를 전송
     private Mono<Void> sendToQueue(String destination, OrderCreatedMessage message) {
         return Mono.fromCallable(() -> {
             log.info("→ 큐 전송 시도: {} (status={})", destination, message.status());
