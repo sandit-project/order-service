@@ -122,9 +122,11 @@ class OrderServiceTest {
         when(req.getReservationDate()).thenReturn(LocalDateTime.now());
 
         Order saved = Order.builder().merchantUid("mu").price(500).version(0).build();
+        // save only returns saved 객체
         when(txOp.transactional(any(Mono.class)))
                 .thenReturn(Mono.just(saved));
 
+        // findByMerchantUid 기본 stub이 Flux.empty() 를 반환하므로 filter/delete 로직 건너뜁니다
         StepVerifier.create(orderService.preparePayment(req))
                 .assertNext(resp -> {
                     Assertions.assertEquals("mu", resp.getMerchantUid());
@@ -186,9 +188,10 @@ class OrderServiceTest {
 
     @Test
     void 상태_변경_실패_잘못된상태() {
+        // validateStatusForQueue 에 의해 ERROR 대신 success=false DTO 반환
         StepVerifier.create(orderService.changeOrderStatus("m1", OrderStatus.ORDER_CREATED))
-                .expectError(IllegalArgumentException.class)
-                .verify();
+                .assertNext(resp -> Assertions.assertFalse(resp.isSuccess()))
+                .verifyComplete();
     }
 
     @Test

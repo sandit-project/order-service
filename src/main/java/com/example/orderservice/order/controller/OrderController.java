@@ -163,29 +163,33 @@ public class OrderController {
                         .build());
     }
 
-    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<CancelPaymentResponseDTO>> cancelPayment(@RequestBody CancelPaymentRequestDTO dto) {
-        log.info("[cancelPayment] 요청 도착: merchantUid={}, reason={}", dto.getMerchantUid(), dto.getReason());
 
-        return orderService.cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
-                .map(resp -> {
-                    log.info("[cancelPayment] 응답 전송: {}", resp);
-                    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(resp);
-                })
-                .defaultIfEmpty(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(CancelPaymentResponseDTO.builder()
-                                .success(false)
-                                .message("환불 처리 응답이 없습니다.")
-                                .build()))
-                .onErrorResume(ex -> {
-                    log.error("[cancelPayment] 예외 발생", ex);
-                    return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                            .body(CancelPaymentResponseDTO.builder()
-                                    .success(false)
-                                    .message("결제 취소 실패: " + ex.getMessage())
-                                    .build()));
-                });
+    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<List<CancelPaymentResponseDTO>>> cancelPayment(
+            @RequestBody CancelPaymentRequestDTO dto
+    ) {
+        return orderService
+                .cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
+                .map(respList ->
+                        ResponseEntity
+                                .ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .body(respList)
+                )
+                .onErrorResume(ex ->
+                        Mono.just(
+                                ResponseEntity
+                                        .status(HttpStatus.SERVICE_UNAVAILABLE)
+                                        .body(List.of(
+                                                CancelPaymentResponseDTO.builder()
+                                                        .success(false)
+                                                        .message("결제 취소 실패: " + ex.getMessage())
+                                                        .build()
+                                        ))
+                        )
+                );
     }
+
 
 
 
