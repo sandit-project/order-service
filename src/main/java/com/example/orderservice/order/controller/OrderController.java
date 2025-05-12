@@ -61,15 +61,8 @@ public class OrderController {
 
     @GetMapping("/user/{userUid}")
     public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(
-            @PathVariable Integer userUid,
-            @AuthenticationPrincipal Jwt principal // JWT에서 uid 추출
+            @PathVariable Integer userUid
     ) {
-        Integer authUserUid = ((Number) principal.getClaim("uid")).intValue();
-
-        if (!userUid.equals(authUserUid)) {
-            return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."));
-        }
-
         log.info("findAllByUserUid: {}", userUid);
         return orderService.findAllByUserUid(userUid)
                 .map(this::convertToSingleDetailDTO)
