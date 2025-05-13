@@ -3,6 +3,7 @@ package com.example.orderservice.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -30,7 +31,16 @@ public class SecurityConfig {
                 .authorizeExchange(ex -> ex
                         // 필요한 경로 허용
                         .pathMatchers("/orders/prepare", "/orders/update-success", "/orders/update-fail").permitAll()
-                        .anyExchange().authenticated()
+                        // 그 외 모든 요청: ADMIN 이면 무조건 ok, 아니면 인증된 사용자만
+                        .anyExchange().access((monoAuth, ctx) ->
+                                monoAuth
+                                        // monoAuth: Authentication
+                                        .map(auth -> {
+                                            boolean isAdmin = auth.getAuthorities().stream()
+                                                    .anyMatch(grant -> grant.getAuthority().equals("ROLE_ADMIN"));
+                                            return new AuthorizationDecision(isAdmin || auth.isAuthenticated());
+                                        })
+                        )
                 )
 
                 .oauth2ResourceServer(oauth2 -> oauth2
