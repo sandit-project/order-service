@@ -28,6 +28,7 @@ public class OrderService {
     private final static Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private final OrderRepository orderRepository;
+    private final OrderCancelRedisRepository redisRepo;
     private final DeliveryOrderRepository deliveryOrderRepository;
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
@@ -322,6 +323,42 @@ public class OrderService {
                         })
                         .then(orderRepository.deleteRepresentativeOrder(merchantUid))
         ).then();
+    }
+
+    // 1) init: 주문들 조회 → Redis에 oldStatus 저장 → DB 상태 CANCELLED */
+    public Mono<Void> initCancel(String merchantUid) {
+        return orderRepository.findByMerchantUid(merchantUid)
+                .collectList()
+                .flatMap(list -> {
+                    String old = list.get(0).getStatus().name();
+                    return redisRepo.savePreviousState(merchantUid, old)
+                            .thenMany(Flux.fromIterable(list))
+                            .flatMap(o -> {
+                                o.setStatus(OrderStatus.ORDER_CANCELLED);
+                                return orderRepository.save(o);
+                            })
+                            .then();
+                });
+    }
+
+    // 2) confirm: 취소 최종 확정 → Redis 키 삭제 */
+    public Mono<Void> confirmCancel(String merchantUid) {
+        return redisRepo.deleteState(merchantUid).then();
+    }
+
+    // 3) compensate: 실패 시 보상 → Redis 에서 oldStatus 꺼내와서 롤백 → 키 삭제
+    public Mono<Void> compensateCancel(String merchantUid) {
+        return redisRepo.fetchPreviousState(merchantUid)
+                .flatMapMany(prevName -> {
+                    OrderStatus prev = OrderStatus.valueOf(prevName);
+                    return orderRepository.findByMerchantUid(merchantUid)
+                            .flatMap(o -> {
+                                o.setStatus(prev);
+                                return orderRepository.save(o);
+                            });
+                })
+                .then(redisRepo.deleteState(merchantUid))
+                .then();
     }
 
     // 주문 취소 처리 및 상태 ORDER_CANCELLED 로 변경 + MQ 발행

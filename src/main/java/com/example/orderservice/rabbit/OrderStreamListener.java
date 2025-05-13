@@ -48,7 +48,8 @@ public class OrderStreamListener {
                             return Mono.empty();
                         }
 
-                        return orderService.changeOrderStatus(message.merchantUid(), targetStatus);
+                        return orderService.changeOrderStatus(message.merchantUid(), targetStatus)
+                                .then(sendToQueue("statusChange-out-2", message));
                     })
                     .onErrorResume(e -> {
                         log.error("[statusChange] 상태 처리 실패 → 롤백 진행: {}", e);
