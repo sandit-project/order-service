@@ -10,6 +10,6 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 public class CancelPaymentResponseDTO {
-    private boolean success;
+    private boolean isSuccess;
     private String message;
 }

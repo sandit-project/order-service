@@ -182,7 +182,7 @@ public class OrderController {
                                         .status(HttpStatus.SERVICE_UNAVAILABLE)
                                         .body(List.of(
                                                 CancelPaymentResponseDTO.builder()
-                                                        .success(false)
+                                                        .isSuccess(false)
                                                         .message("결제 취소 실패: " + ex.getMessage())
                                                         .build()
                                         ))

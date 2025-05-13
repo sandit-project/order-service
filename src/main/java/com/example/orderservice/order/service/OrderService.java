@@ -126,7 +126,12 @@ public class OrderService {
         }
 
         List<Order> orders = dto.getItems().stream()
-                .filter(item -> item.version() == 0 && !(item.menuName().contains("외") && item.amount() == 1))
+                //.filter(item -> item.version() == 0 && !(item.menuName().contains("외") && item.amount() == 1))
+                .filter(item -> {
+                    int ver = item.version() != null ? item.version() : 0;
+                    return ver == 0
+                    && !(item.menuName().contains("외") && item.amount() == 1);
+                    })
                 .map(item -> Order.builder()
                         .userUid(dto.getUserUid())
                         .socialUid(dto.getSocialUid())
@@ -163,6 +168,7 @@ public class OrderService {
 
                                                 DeliveryAddress addressEntity = new DeliveryAddress();
                                                 addressEntity.setMerchantUid(dto.getMerchantUid());
+                                                addressEntity.setUserUid(Long.valueOf(dto.getUserUid()));
                                                 addressEntity.setAddressStart(addr.getAddressStart());
                                                 addressEntity.setAddressStartLat(addr.getAddressStartLat());
                                                 addressEntity.setAddressStartLan(addr.getAddressStartLan());
@@ -333,7 +339,7 @@ public class OrderService {
                 .flatMap(savedList -> {
                     if (savedList.isEmpty()) {
                         return Mono.just(List.of(CancelPaymentResponseDTO.builder()
-                                .success(false)
+                                .isSuccess(false)
                                 .message("취소할 주문이 없습니다.")
                                 .build()));
                     }
@@ -347,7 +353,7 @@ public class OrderService {
 
                     List<CancelPaymentResponseDTO> responseList = savedList.stream()
                             .map(order -> CancelPaymentResponseDTO.builder()
-                                    .success(true)
+                                    .isSuccess(true)
                                     .message("주문 " + order.getUid() + " 취소 완료")
                                     .build())
                             .collect(Collectors.toList());
