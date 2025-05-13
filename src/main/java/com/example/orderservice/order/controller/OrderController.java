@@ -164,31 +164,31 @@ public class OrderController {
     }
 
 
-    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<List<CancelPaymentResponseDTO>>> cancelPayment(
-            @RequestBody CancelPaymentRequestDTO dto
-    ) {
-        return orderService
-                .cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
-                .map(respList ->
-                        ResponseEntity
-                                .ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .body(respList)
-                )
-                .onErrorResume(ex ->
-                        Mono.just(
-                                ResponseEntity
-                                        .status(HttpStatus.SERVICE_UNAVAILABLE)
-                                        .body(List.of(
-                                                CancelPaymentResponseDTO.builder()
-                                                        .isSuccess(false)
-                                                        .message("결제 취소 실패: " + ex.getMessage())
-                                                        .build()
-                                        ))
-                        )
-                );
-    }
+//    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
+//    public Mono<ResponseEntity<List<CancelPaymentResponseDTO>>> cancelPayment(
+//            @RequestBody CancelPaymentRequestDTO dto
+//    ) {
+//        return orderService
+//                .cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
+//                .map(respList ->
+//                        ResponseEntity
+//                                .ok()
+//                                .contentType(MediaType.APPLICATION_JSON)
+//                                .body(respList)
+//                )
+//                .onErrorResume(ex ->
+//                        Mono.just(
+//                                ResponseEntity
+//                                        .status(HttpStatus.SERVICE_UNAVAILABLE)
+//                                        .body(List.of(
+//                                                CancelPaymentResponseDTO.builder()
+//                                                        .isSuccess(false)
+//                                                        .message("결제 취소 실패: " + ex.getMessage())
+//                                                        .build()
+//                                        ))
+//                        )
+//                );
+//    }
 
 
 
