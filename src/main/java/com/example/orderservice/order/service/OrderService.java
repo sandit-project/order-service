@@ -8,19 +8,20 @@ import com.example.orderservice.payment.CancelPaymentResponseDTO;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class OrderService {
     private final TransactionalOperator txOp;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final StreamBridge streamBridge;
+    private final RedissonClient redissonClient;
 
     // 현재 시각을 반환하는 헬퍼 메서드 (테스트 시 오버라이드 용)
     protected LocalDateTime getNow() {
@@ -120,8 +122,31 @@ public class OrderService {
                 .build());
     }
 
-    // 실제 주문 저장 + 배송주소 저장 + MQ 발행
+    // 실제 주문 저장 + 배송주소 저장 + MQ 발행을 락으로 감쌈
     public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
+        String merchantUid = dto.getMerchantUid();
+        String lockKey = "order:lock:" + merchantUid;
+        RLock lock = redissonClient.getLock(lockKey);
+
+        return Mono.fromCallable(() -> {
+                    lock.lock(); // 순서대로 처리됨. 대기 → 실행 → 해제 → 다음 실행
+                    return true;
+                })
+                .subscribeOn(Schedulers.boundedElastic()) // 락은 블로킹 → 별도 스레드에서 실행
+                .flatMap(ignore -> runSubmitLogic(dto))
+                .doFinally(signal -> {
+                    log.info("락 상태: held={}, key={}", lock.isHeldByCurrentThread(), lockKey);
+                    if (lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                        log.info("락 해제 완료: {}", lockKey);
+                    }
+                });
+    }
+
+
+    // 실제 주문 저장 + 배송주소 저장 + MQ 발행
+    public Mono<OrderResponseDTO> runSubmitLogic(OrderRequestDTO dto) {
+
         log.info("[submitOrder] 요청: merchantUid={}, version={}", dto.getMerchantUid(), dto.getVersion());
 
         if (dto.getItems() == null || dto.getItems().isEmpty()) {
@@ -133,7 +158,6 @@ public class OrderService {
         }
 
         List<Order> orders = dto.getItems().stream()
-                //.filter(item -> item.version() == 0 && !(item.menuName().contains("외") && item.amount() == 1))
                 .filter(item -> {
                     int ver = item.version() != null ? item.version() : 0;
                     return ver == 0
@@ -332,10 +356,14 @@ public class OrderService {
     }
 
     // 1) init: 주문들 조회 → Redis에 oldStatus 저장 → DB 상태 CANCELLED */
-    public Mono<Void> initCancel(String merchantUid) {
+    public Mono<CancelPaymentResponseDTO> initCancel(String merchantUid) {
         return orderRepository.findByMerchantUid(merchantUid)
                 .collectList()
                 .flatMap(list -> {
+                    if (list.isEmpty()) {
+                        log.error("[initCancel] 주문 없음: merchantUid={}", merchantUid);
+                        return Mono.error(new IllegalArgumentException("주문을 찾을 수 없습니다."));
+                    }
                     String old = list.get(0).getStatus().name();
                     return redisRepo.savePreviousState(merchantUid, old)
                             .thenMany(Flux.fromIterable(list))
@@ -343,17 +371,17 @@ public class OrderService {
                                 o.setStatus(OrderStatus.ORDER_CANCELLED);
                                 return orderRepository.save(o);
                             })
-                            .then();
+                            .then(Mono.just(new CancelPaymentResponseDTO(true, "상태 변경 성공")));
                 });
     }
 
     // 2) confirm: 취소 최종 확정 → Redis 키 삭제 */
-    public Mono<Void> confirmCancel(String merchantUid) {
-        return redisRepo.deleteState(merchantUid).then();
+    public Mono<CancelPaymentResponseDTO> confirmCancel(String merchantUid) {
+        return redisRepo.deleteState(merchantUid).then(Mono.just(new CancelPaymentResponseDTO(true, "Redis 키 삭제 성공")));
     }
 
     // 3) compensate: 실패 시 보상 → Redis 에서 oldStatus 꺼내와서 롤백 → 키 삭제
-    public Mono<Void> compensateCancel(String merchantUid) {
+    public Mono<CancelPaymentResponseDTO> compensateCancel(String merchantUid) {
         return redisRepo.fetchPreviousState(merchantUid)
                 .flatMapMany(prevName -> {
                     OrderStatus prev = OrderStatus.valueOf(prevName);
@@ -364,45 +392,7 @@ public class OrderService {
                             });
                 })
                 .then(redisRepo.deleteState(merchantUid))
-                .then();
-    }
-
-    // 주문 취소 처리 및 상태 ORDER_CANCELLED 로 변경 + MQ 발행
-    public Mono<List<CancelPaymentResponseDTO>> cancelOrderPayment(
-            String merchantUid,
-            String reason
-    ) {
-        return orderRepository
-                .findByMerchantUid(merchantUid)
-                .flatMap(order -> {
-                    order.setStatus(OrderStatus.ORDER_CANCELLED);
-                    return orderRepository.save(order);
-                })
-                .collectList()
-                .flatMap(savedList -> {
-                    if (savedList.isEmpty()) {
-                        return Mono.just(List.of(CancelPaymentResponseDTO.builder()
-                                .isSuccess(false)
-                                .message("취소할 주문이 없습니다.")
-                                .build()));
-                    }
-
-                    // 상태 변경 후 MQ 메시지 발행 추가
-                    OrderCreatedMessage msg = OrderCreatedMessage.builder()
-                            .merchantUid(merchantUid)
-                            .status(OrderStatus.ORDER_CANCELLED)
-                            .build();
-                    streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
-
-                    List<CancelPaymentResponseDTO> responseList = savedList.stream()
-                            .map(order -> CancelPaymentResponseDTO.builder()
-                                    .isSuccess(true)
-                                    .message("주문 " + order.getUid() + " 취소 완료")
-                                    .build())
-                            .collect(Collectors.toList());
-
-                    return Mono.just(responseList);
-                });
+                .then(Mono.just(new CancelPaymentResponseDTO(true, "롤백 및 Redis 키 삭제 완료")));
     }
 
     // 상태 변경 실패 시 DB 롤백 후 보상 메시지 발행

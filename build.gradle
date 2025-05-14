@@ -85,6 +85,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
     // Lettuce 드라이버
     implementation 'io.lettuce:lettuce-core'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.25.2'
 
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     // Amazon SQS 메시징을 위한 의존성 추가
