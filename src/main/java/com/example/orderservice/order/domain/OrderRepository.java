@@ -21,10 +21,6 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     @Query("SELECT * FROM `orders` WHERE `merchant_uid` = :merchantUid")
     Flux<Order> findByMerchantUid(@Param("merchantUid") String merchantUid);
 
-    @Modifying
-    @Query("DELETE FROM `orders` WHERE `merchant_uid` = :merchantUid AND (status = :status OR version = 1)")
-    Mono<Void> deletePreOrders(@Param("merchantUid") String merchantUid, @Param("status") OrderStatus status);
-
     @Query("DELETE FROM `orders` WHERE `merchant_uid` = :merchantUid AND version = 1")
     Mono<Void> deleteRepresentativeOrder(String merchantUid);
 

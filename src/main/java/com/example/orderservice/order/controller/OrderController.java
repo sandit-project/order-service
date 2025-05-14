@@ -3,21 +3,14 @@ package com.example.orderservice.order.controller;
 import com.example.orderservice.order.domain.*;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.service.OrderService;
-import com.example.orderservice.payment.CancelPaymentRequestDTO;
-import com.example.orderservice.payment.CancelPaymentResponseDTO;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
 import com.example.orderservice.payment.PreparePaymentResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -40,6 +33,14 @@ public class OrderController {
                 .map(this::convertToDetailDTO)
                 .switchIfEmpty(Mono.empty());
     }
+
+    @GetMapping("/merchant/{merchantUid}")
+    public Mono<List<OrderDetailResponseDTO>> getOrdersByMerchantUid(@PathVariable String merchantUid) {
+        return orderService.getOrderByMerchantUid(merchantUid)
+                .map(this::convertToSingleDetailDTO)
+                .collectList();
+    }
+
 
     @GetMapping("/status/cooking")
     public Mono<List<DeliveryOrderResponseDTO>> getCookingOrders() {
@@ -162,38 +163,6 @@ public class OrderController {
                         .message("주문 실패!")
                         .build());
     }
-
-
-//    @PostMapping(value = "/payments/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
-//    public Mono<ResponseEntity<List<CancelPaymentResponseDTO>>> cancelPayment(
-//            @RequestBody CancelPaymentRequestDTO dto
-//    ) {
-//        return orderService
-//                .cancelOrderPayment(dto.getMerchantUid(), dto.getReason())
-//                .map(respList ->
-//                        ResponseEntity
-//                                .ok()
-//                                .contentType(MediaType.APPLICATION_JSON)
-//                                .body(respList)
-//                )
-//                .onErrorResume(ex ->
-//                        Mono.just(
-//                                ResponseEntity
-//                                        .status(HttpStatus.SERVICE_UNAVAILABLE)
-//                                        .body(List.of(
-//                                                CancelPaymentResponseDTO.builder()
-//                                                        .isSuccess(false)
-//                                                        .message("결제 취소 실패: " + ex.getMessage())
-//                                                        .build()
-//                                        ))
-//                        )
-//                );
-//    }
-
-
-
-
-
 
     /**
      * 지점 주문 목록 조회
