@@ -65,9 +65,15 @@ public class OrderService {
     }
 
     // 유저 UID로 주문 전체 조회
-    public Flux<Order> findAllByUserUid(Integer userUid) {
-        return orderRepository.findByUserUid(userUid);
+    public Flux<Order> findAllByUserUid(String userType, Integer userUid) {
+        if("USER".equals(userType)){
+            return orderRepository.findByUserUid(userUid);
+        }else{
+            return orderRepository.findBySocialUid(userUid);
+        }
     }
+    
+    // 배달중인 주문 join으로 가져오는 로직 (실시간 좌표에 사용 할거 - 프로필)
 
     // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
     private void validateStatusForQueue(OrderStatus status) {

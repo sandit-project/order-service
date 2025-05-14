@@ -18,6 +18,9 @@ public interface OrderRepository extends ReactiveCrudRepository<Order, Integer> 
     @Query("SELECT * FROM `orders` WHERE `user_uid` = :userUid")
     Flux<Order> findByUserUid(@Param("userUid") Integer userUid);
 
+    @Query("SELECT * FROM `orders` WHERE `social_uid` = :userUid")
+    Flux<Order> findBySocialUid(@Param("userUid") Integer userUid);
+
     @Query("SELECT * FROM `orders` WHERE `merchant_uid` = :merchantUid")
     Flux<Order> findByMerchantUid(@Param("merchantUid") String merchantUid);
 

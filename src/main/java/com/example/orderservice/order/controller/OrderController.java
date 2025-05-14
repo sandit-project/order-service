@@ -59,12 +59,13 @@ public class OrderController {
                 .map(order -> convertToDetailDTO(List.of(order)));
     }
 
-    @GetMapping("/user/{userUid}")
+    @GetMapping("/user/{userType}/{userUid}")
     public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(
-            @PathVariable Integer userUid
+            @PathVariable(name = "userType") String userType,
+            @PathVariable(name = "userUid") Integer userUid
     ) {
-        log.info("findAllByUserUid: {}", userUid);
-        return orderService.findAllByUserUid(userUid)
+        log.info("findAllByUserUid var: {},{}", userType, userUid);
+        return orderService.findAllByUserUid(userType, userUid)
                 .map(this::convertToSingleDetailDTO)
                 .collectList();
     }
@@ -134,16 +135,6 @@ public class OrderController {
                 .reservationDate(order.getReservationDate())
                 .build();
     }
-
-    @PutMapping("/{merchantUid}/status")
-    public Mono<OrderStatusChangeResponseDTO> changeOrderStatus(
-            @PathVariable String merchantUid,
-            @RequestParam OrderStatus newStatus
-    ) {
-        log.info("changeOrderStatus: {}", merchantUid, newStatus);
-        return orderService.changeOrderStatus(merchantUid, newStatus);
-    }
-
 
     @PostMapping("/update-success")
     public Mono<OrderResponseDTO> updateOrderStatusSuccess(@RequestBody UpdateOrderStatusRequest request) {
