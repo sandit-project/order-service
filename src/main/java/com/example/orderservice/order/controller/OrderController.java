@@ -77,6 +77,7 @@ public class OrderController {
         return orderService.preparePayment(request);
     }
 
+    //주문하기
     @PostMapping
     public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
         log.info("orderRequestDTO: {}", orderRequestDTO);
