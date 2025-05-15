@@ -41,19 +41,6 @@ public class OrderController {
                 .collectList();
     }
 
-
-    @GetMapping("/status/cooking")
-    public Mono<List<DeliveryOrderResponseDTO>> getCookingOrders() {
-        return orderService.getCookingOrders()
-                .collectList();
-    }
-
-    @GetMapping("/status/delivering")
-    public Mono<List<DeliveryOrderResponseDTO>> getDeliveringOrders() {
-        return orderService.getDeliveringOrders()
-                .collectList();
-    }
-
     @GetMapping("/{uid}")
     public Mono<OrderDetailResponseDTO> getOrderByUid(@PathVariable Integer uid) {
         return orderService.getOrderByUid(uid)
@@ -71,6 +58,15 @@ public class OrderController {
                 .collectList();
     }
 
+    @GetMapping("/user/delivering/{userType}/{userUid}")
+    public Mono<List<DeliveryOrderResponseDTO>> getDeliveringOrdersByUserUid(
+            @PathVariable(name = "userType") String userType,
+            @PathVariable(name = "userUid") Integer userUid
+    ) {
+        log.info("getDeliveringOrdersByUserUid var: {},{}", userType, userUid);
+        return orderService.getDeliveringOrdersByUserUid(userType, userUid)
+                .collectList();
+    }
 
     //결제 준비
     @PostMapping("/prepare")

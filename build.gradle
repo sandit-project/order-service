@@ -75,7 +75,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
-    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-stream'
     implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
@@ -87,12 +86,6 @@ dependencies {
     implementation 'io.lettuce:lettuce-core'
     implementation 'org.redisson:redisson-spring-boot-starter:3.25.2'
 
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-    // Amazon SQS 메시징을 위한 의존성 추가
-    implementation 'io.awspring.cloud:spring-cloud-aws-messaging'
-    // AWS SDK SQS 모듈 (버전은 필요에 따라 조정)
-    implementation 'com.amazonaws:aws-java-sdk-sqs:1.12.546'
-    implementation 'com.github.iamport:iamport-rest-client-java:0.2.23'
     //HS512 JWT 를 검증
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.security:spring-security-oauth2-jose'
