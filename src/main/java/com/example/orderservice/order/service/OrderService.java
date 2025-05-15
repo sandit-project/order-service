@@ -234,62 +234,34 @@ public class OrderService {
 
 
     // 주문 상태 변경 및 MQ 발행
-    public Mono<OrderStatusChangeResponseDTO> changeOrderStatus(String merchantUid, OrderStatus newStatus) {
-        validateStatusForQueue(newStatus); // MQ 발행 가능한 상태인지 체크
-
+    public Mono<Void> changeOrderStatus(String merchantUid, OrderStatus targetStatus) {
         return orderRepository.findByMerchantUid(merchantUid)
                 .collectList()
-                .flatMap(existingOrders -> {
-                    if (existingOrders.isEmpty()) {
-                        return Mono.error(new IllegalArgumentException("해당 merchantUid로 주문을 찾을 수 없습니다."));
+                .flatMap(orders -> {
+                    if (orders.isEmpty()) {
+                        return Mono.error(new IllegalArgumentException("주문이 존재하지 않습니다: " + merchantUid));
+                    }
+                    OrderStatus current = orders.get(0).getStatus();
+
+                    // 한 단계 점프만 허용
+                    if (!isValidTransition(current, targetStatus)) {
+                        return Mono.error(new IllegalStateException(
+                                "상태 전이 불가: " + current + " → " + targetStatus));
                     }
 
-                    List<Order> updatedOrders = existingOrders.stream()
-                            .map(orig -> Order.builder()
-                                    .uid(orig.getUid())
-                                    .userUid(orig.getUserUid())
-                                    .storeUid(orig.getStoreUid())
-                                    .merchantUid(orig.getMerchantUid())
-                                    .menuName(orig.getMenuName())
-                                    .amount(orig.getAmount())
-                                    .price(orig.getPrice())
-                                    .calorie(orig.getCalorie())
-                                    .payment(orig.getPayment())
-                                    .status(newStatus)
-                                    .createdDate(orig.getCreatedDate())
-                                    .reservationDate(orig.getReservationDate())
-                                    .version(orig.getVersion())
-                                    .build()
-                            )
-                            .toList();
-
-                    return txOp.transactional(orderRepository.saveAll(updatedOrders).then()).thenReturn(updatedOrders);
-                })
-                .flatMap(savedOrders -> {
-                    // MQ 메시지 발행
-                    OrderCreatedMessage msg = OrderCreatedMessage.builder()
-                            .merchantUid(merchantUid)
-                            .status(newStatus)
-                            .build();
-
-                    streamBridge.send("orderCreated-out-0", MessageBuilder.withPayload(msg).build());
-
-                    return Mono.just(OrderStatusChangeResponseDTO.builder()
-                            .success(true)
-                            .message("상태 변경 및 MQ 발행 완료")
-                            .merchantUid(merchantUid)
-                            .newStatus(newStatus)
-                            .build());
-                })
-                .onErrorResume(e -> {
-                    log.error("[changeOrderStatus] 오류 발생: {}", e.getMessage(), e);
-                    return Mono.just(OrderStatusChangeResponseDTO.builder()
-                            .success(false)
-                            .message("상태 변경 실패: " + e.getMessage())
-                            .merchantUid(merchantUid)
-                            .newStatus(newStatus)
-                            .build());
+                    // 실제 상태 변경
+                    return Flux.fromIterable(orders)
+                            .flatMap(o -> {
+                                o.setStatus(targetStatus);
+                                return orderRepository.save(o);
+                            })
+                            .then();
                 });
+    }
+
+    // 한 단계(ordinal 차이 1)만 허용
+    private boolean isValidTransition(OrderStatus from, OrderStatus to) {
+        return to.ordinal() == from.ordinal() + 1;
     }
 
     // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
