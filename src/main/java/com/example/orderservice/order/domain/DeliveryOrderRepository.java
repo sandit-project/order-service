@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class DeliveryOrderRepository {
     private final DatabaseClient databaseClient;
 
-    public Flux<DeliveryOrderResponseDTO> getCookingOrders() {
+    public Flux<DeliveryOrderResponseDTO> getDeliveringOrdersByUserUid(Integer paramUid) {
         return databaseClient.sql("""
             SELECT
                 o.uid AS uid,
@@ -34,9 +34,10 @@ public class DeliveryOrderRepository {
                 da.address_destination_lan AS addressDestinationLan
             FROM delivery_address da
             LEFT JOIN orders o ON da.merchant_uid = o.merchant_uid
-            WHERE o.status = 'ORDER_COOKING'
+            WHERE o.status = 'ORDER_DELIVERING' AND o.user_uid = :paramUid
             ORDER BY o.created_date ASC
         """)
+                .bind("paramUid", paramUid)
                 .map((row, meta) -> {
                     DeliveryOrderResponseDTO dto = new DeliveryOrderResponseDTO();
                     dto.setUid(row.get("uid", Long.class));
@@ -61,7 +62,7 @@ public class DeliveryOrderRepository {
                 .all();
     }
 
-    public Flux<DeliveryOrderResponseDTO> getDeliveringOrders() {
+    public Flux<DeliveryOrderResponseDTO> getDeliveringOrdersBySocialUid(Integer paramUid) {
         return databaseClient.sql("""
             SELECT
                 o.uid AS uid,
@@ -83,9 +84,10 @@ public class DeliveryOrderRepository {
                 da.address_destination_lan AS addressDestinationLan
             FROM delivery_address da
             LEFT JOIN orders o ON da.merchant_uid = o.merchant_uid
-            WHERE o.status = 'ORDER_DELIVERING'
+            WHERE o.status = 'ORDER_DELIVERING' AND o.social_uid = :paramUid
             ORDER BY o.created_date ASC
         """)
+                .bind("paramUid", paramUid)
                 .map((row, meta) -> {
                     DeliveryOrderResponseDTO dto = new DeliveryOrderResponseDTO();
                     dto.setUid(row.get("uid", Long.class));

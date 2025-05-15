@@ -46,16 +46,6 @@ public class OrderService {
         return orderRepository.findAllOrders();
     }
 
-    // 조리중 상태 주문 조회
-    public Flux<DeliveryOrderResponseDTO> getCookingOrders() {
-        return deliveryOrderRepository.getCookingOrders();
-    }
-
-    // 배달중 상태 주문 조회
-    public Flux<DeliveryOrderResponseDTO> getDeliveringOrders() {
-        return deliveryOrderRepository.getDeliveringOrders();
-    }
-
     // uid로 주문 조회 (단건)
     public Mono<Order> getOrderByUid(Integer uid) {
         return orderRepository.findById(uid);
@@ -76,6 +66,13 @@ public class OrderService {
     }
     
     // 배달중인 주문 join으로 가져오는 로직 (실시간 좌표에 사용 할거 - 프로필)
+    public Flux<DeliveryOrderResponseDTO> getDeliveringOrdersByUserUid(String userType, Integer userUid) {
+        if("USER".equals(userType)){
+            return deliveryOrderRepository.getDeliveringOrdersByUserUid(userUid);
+        }else{
+            return deliveryOrderRepository.getDeliveringOrdersBySocialUid(userUid);
+        }
+    }
 
     // MQ로 발행 가능한 주문 상태 검증 (6개 상태만 허용)
     private void validateStatusForQueue(OrderStatus status) {
