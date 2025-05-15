@@ -1,18 +1,13 @@
 package com.example.orderservice.rabbit;
 
 import com.example.orderservice.event.OrderCreatedMessage;
-import com.example.orderservice.order.domain.DeliveryAddressRepository;
-import com.example.orderservice.order.domain.Order;
 import com.example.orderservice.order.domain.OrderStatus;
-import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.service.OrderService;
-import com.example.orderservice.payment.CancelPaymentResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.support.MessageBuilder;
 import reactor.core.publisher.Mono;
 
@@ -37,35 +32,31 @@ public class OrderStreamListener {
                     .flatMap(orders -> {
                         if (orders.isEmpty()) {
                             log.warn("해당 merchantUid 주문 없음: {}", message.merchantUid());
-                            return Mono.empty();
-                        }
-
+                            return Mono.error(new IllegalStateException("해당 merchantUid 주문 없음: " + message.merchantUid()));                        }
                         OrderStatus currentStatus = orders.get(0).getStatus();
                         OrderStatus targetStatus = message.status();
-
                         if (currentStatus == targetStatus) {
                             log.info("[statusChange] 상태 동일 → 처리 생략");
                             return Mono.empty();
                         }
-
                         return orderService.changeOrderStatus(message.merchantUid(), targetStatus)
-                                .then(sendToQueue("statusChange-out-2", message));
+                                .then(sendToQueue("statusChange-out-0", message));
                     })
                     .onErrorResume(e -> {
                         log.error("[statusChange] 상태 처리 실패 → 롤백 진행: {}", e);
-
                         OrderStatus rollbackStatus = determineRollbackStatus(message.status());
                         if (rollbackStatus == null) {
                             log.warn("[statusChange] 롤백 대상 아님 → 종료");
                             return Mono.empty();
                         }
-
-                        // 이 부분을 return X → subscribe()로 실행
-                        orderService.updateStatusWithRollback(message.merchantUid(), rollbackStatus, message.status())
-                                .doOnError(rollbackError -> log.error("롤백 처리 중 에러 발생", rollbackError))
-                                .subscribe(); //직접 구독해줘야 실행
-
-                        return Mono.empty(); // 원래 체인에는 영향 안 줌
+                        // 롤백 처리 후 롤백 큐로 메시지 발행
+                        return orderService.updateStatusWithRollback(message.merchantUid(), rollbackStatus, message.status())
+                                .then(sendToQueue("orderRollback-out-0",
+                                        OrderCreatedMessage.builder()
+                                                .merchantUid(message.merchantUid())
+                                                .status(rollbackStatus)
+                                                .build()
+                                ));
                     })
                     .subscribe();
         };
