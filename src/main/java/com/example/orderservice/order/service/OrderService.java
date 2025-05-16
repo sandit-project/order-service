@@ -241,13 +241,13 @@ public class OrderService {
                     if (orders.isEmpty()) {
                         return Mono.error(new IllegalArgumentException("주문이 존재하지 않습니다: " + merchantUid));
                     }
-                    OrderStatus current = orders.get(0).getStatus();
-
-                    // 한 단계 점프만 허용
-                    if (!isValidTransition(current, targetStatus)) {
-                        return Mono.error(new IllegalStateException(
-                                "상태 전이 불가: " + current + " → " + targetStatus));
-                    }
+//                    OrderStatus current = orders.get(0).getStatus();
+//
+//                    // 한 단계 점프만 허용
+//                    if (!isValidTransition(current, targetStatus)) {
+//                        return Mono.error(new IllegalStateException(
+//                                "상태 전이 불가: " + current + " → " + targetStatus));
+//                    }
 
                     // 실제 상태 변경
                     return Flux.fromIterable(orders)
@@ -260,9 +260,9 @@ public class OrderService {
     }
 
     // 한 단계(ordinal 차이 1)만 허용
-    private boolean isValidTransition(OrderStatus from, OrderStatus to) {
-        return to.ordinal() == from.ordinal() + 1;
-    }
+//    private boolean isValidTransition(OrderStatus from, OrderStatus to) {
+//        return to.ordinal() == from.ordinal() + 1;
+//    }
 
     // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {

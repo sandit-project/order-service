@@ -39,8 +39,15 @@ public class OrderStreamListener {
                             log.info("[statusChange] 상태 동일 → 처리 생략");
                             return Mono.empty();
                         }
-                        return orderService.changeOrderStatus(message.merchantUid(), targetStatus)
-                                .then(sendToQueue("statusChange-out-0", message));
+                        // 상태 변경은 항상 수행
+                        Mono<Void> statusChangeMono = orderService.changeOrderStatus(message.merchantUid(), targetStatus);
+                        // ORDER_COOKING일 때만 큐로 메시지 전송
+                        if (targetStatus == OrderStatus.ORDER_COOKING) {
+                            return statusChangeMono.then(sendToQueue("statusChange-out-0", message));
+                        } else {
+                            log.info("[statusChange] status=ORDER_COOKING이 아니므로 큐 전송 생략");
+                            return statusChangeMono;
+                        }
                     })
                     .onErrorResume(e -> {
                         log.error("[statusChange] 상태 처리 실패 → 롤백 진행: {}", e);
