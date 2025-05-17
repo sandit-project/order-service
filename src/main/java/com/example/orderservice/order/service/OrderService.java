@@ -153,6 +153,13 @@ public class OrderService {
             log.error("대표주문 skipping: merchantUid={}", dto.getMerchantUid());
             return Mono.empty();
         }
+        Integer userUid = dto.getUserUid();
+        Integer socialUid = dto.getSocialUid();
+
+        // 둘 다 null이면 죽는다
+        if (userUid == null && socialUid == null) {
+            return Mono.error(new IllegalArgumentException("userUid 또는 socialUid 중 하나는 반드시 필요합니다."));
+        }
 
         List<Order> orders = dto.getItems().stream()
                 .filter(item -> {
@@ -161,8 +168,8 @@ public class OrderService {
                     && !(item.menuName().contains("외") && item.amount() == 1);
                     })
                 .map(item -> Order.builder()
-                        .userUid(dto.getUserUid())
-                        .socialUid(dto.getSocialUid())
+                        .userUid(userUid != null ? userUid : null)
+                        .socialUid(socialUid != null ? socialUid : null)
                         .storeUid(dto.getStoreUid())
                         .merchantUid(dto.getMerchantUid())
                         .menuName(item.menuName())
@@ -196,7 +203,11 @@ public class OrderService {
 
                                                 DeliveryAddress addressEntity = new DeliveryAddress();
                                                 addressEntity.setMerchantUid(dto.getMerchantUid());
-                                                addressEntity.setUserUid(Long.valueOf(dto.getUserUid()));
+                                                if (userUid != null) {
+                                                    addressEntity.setUserUid(Long.valueOf(userUid));
+                                                } else {
+                                                    addressEntity.setSocialUid(Long.valueOf(socialUid));
+                                                }
                                                 addressEntity.setAddressStart(addr.getAddressStart());
                                                 addressEntity.setAddressStartLat(addr.getAddressStartLat());
                                                 addressEntity.setAddressStartLan(addr.getAddressStartLan());
