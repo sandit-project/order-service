@@ -241,13 +241,22 @@ public class OrderService {
                     if (orders.isEmpty()) {
                         return Mono.error(new IllegalArgumentException("주문이 존재하지 않습니다: " + merchantUid));
                     }
-//                    OrderStatus current = orders.get(0).getStatus();
-//
-//                    // 한 단계 점프만 허용
-//                    if (!isValidTransition(current, targetStatus)) {
-//                        return Mono.error(new IllegalStateException(
-//                                "상태 전이 불가: " + current + " → " + targetStatus));
-//                    }
+
+                    OrderStatus current = orders.get(0).getStatus();
+
+                    // 1. 취소 상태로의 전이 예외 처리
+                    if (targetStatus == OrderStatus.ORDER_CANCELLED) {
+                        // 배달 완료, 배달 중, 조리 중, 주문 접수일 때 취소 불가
+                        if (current == OrderStatus.ORDER_DELIVERED || current == OrderStatus.ORDER_DELIVERING || current == OrderStatus.ORDER_COOKING || current == OrderStatus.ORDER_CONFIRMED) {
+                            return Mono.error(new IllegalStateException("이 상태에서는 주문 취소가 불가합니다: " + current));
+                        }
+                    }
+
+                    // 2. 일반 상태 전이 검증 (예시: 한 단계만 허용)
+                    if (!isValidTransition(current, targetStatus)) {
+                        return Mono.error(new IllegalStateException(
+                                "상태 전이 불가: " + current + " → " + targetStatus));
+                    }
 
                     // 실제 상태 변경
                     return Flux.fromIterable(orders)
@@ -258,11 +267,17 @@ public class OrderService {
                             .then();
                 });
     }
-
-    // 한 단계(ordinal 차이 1)만 허용
-//    private boolean isValidTransition(OrderStatus from, OrderStatus to) {
-//        return to.ordinal() == from.ordinal() + 1;
-//    }
+    
+    // 상태 변경 검증
+    private boolean isValidTransition(OrderStatus from, OrderStatus to) {
+        // 결제 완료 → 주문 취소 허용 (사장님/고객 모두)
+        if (from == OrderStatus.PAYMENT_COMPLETED && to == OrderStatus.ORDER_CANCELLED) return true;
+        // 결제 완료 → 주문 수락 허용 (사장님)
+        if (from == OrderStatus.PAYMENT_COMPLETED && to == OrderStatus.ORDER_CONFIRMED) return true;
+        // 주문 수락 → 조리 중 허용 (사장님)
+        if (from == OrderStatus.ORDER_CONFIRMED && to == OrderStatus.ORDER_COOKING) return true;
+        return false;
+    }
 
     // 결제 성공 처리 → 주문 상태 PAYMENT_COMPLETED로 변경
     public Mono<Void> updateOrderStatusToSuccess(String merchantUid) {
