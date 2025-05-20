@@ -120,7 +120,7 @@ public class OrderService {
     }
 
     // 실제 주문 저장 + 배송주소 저장 + MQ 발행을 락으로 감쌈
-    public Mono<OrderResponseDTO> submitOrder(OrderRequestDTO dto) {
+    public Mono<OrderResponseDTO> submitOrder(String userType, OrderRequestDTO dto) {
         String merchantUid = dto.getMerchantUid();
         String lockKey = "order:lock:" + merchantUid;
         RLock lock = redissonClient.getLock(lockKey);
@@ -130,7 +130,7 @@ public class OrderService {
                     return true;
                 })
                 .subscribeOn(Schedulers.boundedElastic()) // 락은 블로킹 → 별도 스레드에서 실행
-                .flatMap(ignore -> runSubmitLogic(dto))
+                .flatMap(ignore -> runSubmitLogic(userType, dto))
                 .doFinally(signal -> {
                     log.info("락 상태: held={}, key={}", lock.isHeldByCurrentThread(), lockKey);
                     if (lock.isHeldByCurrentThread()) {
@@ -142,7 +142,7 @@ public class OrderService {
 
 
     // 실제 주문 저장 + 배송주소 저장 + MQ 발행
-    public Mono<OrderResponseDTO> runSubmitLogic(OrderRequestDTO dto) {
+    public Mono<OrderResponseDTO> runSubmitLogic(String userType, OrderRequestDTO dto) {
 
         log.info("[submitOrder] 요청: merchantUid={}, version={}", dto.getMerchantUid(), dto.getVersion());
 
@@ -153,6 +153,25 @@ public class OrderService {
             log.error("대표주문 skipping: merchantUid={}", dto.getMerchantUid());
             return Mono.empty();
         }
+        Integer userUid = dto.getUserUid();
+        Integer socialUid = dto.getSocialUid();
+
+        // 둘 다 null이면 죽는다
+        if (userUid == null && socialUid == null) {
+            return Mono.error(new IllegalArgumentException("userUid 또는 socialUid 중 하나는 반드시 필요합니다."));
+        }
+
+        // userType에 따라 필수값 체크
+        if ("USER".equalsIgnoreCase(userType)) {
+            if (userUid == null) {
+                return Mono.error(new IllegalArgumentException("userUid가 필요합니다."));
+            }
+        } else {
+            if (socialUid == null) {
+                return Mono.error(new IllegalArgumentException("socialUid가 필요합니다."));
+            }
+        }
+
 
         List<Order> orders = dto.getItems().stream()
                 .filter(item -> {
@@ -160,9 +179,10 @@ public class OrderService {
                     return ver == 0
                     && !(item.menuName().contains("외") && item.amount() == 1);
                     })
-                .map(item -> Order.builder()
-                        .userUid(dto.getUserUid())
-                        .socialUid(dto.getSocialUid())
+                .map(item -> {
+                    Order.OrderBuilder builder = Order.builder()
+//                        .userUid(userUid != null ? userUid : null)
+//                        .socialUid(socialUid != null ? socialUid : null)
                         .storeUid(dto.getStoreUid())
                         .merchantUid(dto.getMerchantUid())
                         .menuName(item.menuName())
@@ -172,8 +192,15 @@ public class OrderService {
                         .status(dto.isPaymentSuccess() ? OrderStatus.PAYMENT_COMPLETED : OrderStatus.PAYMENT_FAILED)
                         .createdDate(getNow())
                         .calorie(item.calorie())
-                        .reservationDate(dto.getReservationDate())
-                        .build())
+                        .reservationDate(dto.getReservationDate());
+                            if ("USER".equalsIgnoreCase(userType)) {
+                                builder.userUid(userUid).socialUid(null);
+                            } else {
+                                builder.userUid(null).socialUid(socialUid);
+                            }
+                            return builder.build();
+                        })
+//                        .build())
                 .toList();
 
         return txOp.transactional(
@@ -196,7 +223,14 @@ public class OrderService {
 
                                                 DeliveryAddress addressEntity = new DeliveryAddress();
                                                 addressEntity.setMerchantUid(dto.getMerchantUid());
-                                                addressEntity.setUserUid(Long.valueOf(dto.getUserUid()));
+                                                // userType에 따라 UID 강제 설정
+                                                if ("USER".equalsIgnoreCase(userType)) {
+                                                    addressEntity.setUserUid(Long.valueOf(userUid));
+                                                    addressEntity.setSocialUid(null);
+                                                } else {
+                                                    addressEntity.setUserUid(null);
+                                                    addressEntity.setSocialUid(Long.valueOf(socialUid));
+                                                }
                                                 addressEntity.setAddressStart(addr.getAddressStart());
                                                 addressEntity.setAddressStartLat(addr.getAddressStartLat());
                                                 addressEntity.setAddressStartLan(addr.getAddressStartLan());
