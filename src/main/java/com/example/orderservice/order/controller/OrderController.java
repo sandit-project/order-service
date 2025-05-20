@@ -75,10 +75,11 @@ public class OrderController {
     }
 
     //주문하기
-    @PostMapping
-    public Mono<OrderResponseDTO> submitOrder(@RequestBody @Valid OrderRequestDTO orderRequestDTO) {
-        log.info("orderRequestDTO: {}", orderRequestDTO);
-        return orderService.submitOrder(orderRequestDTO);
+    @PostMapping("/{userType}")
+    public Mono<OrderResponseDTO> submitOrder(@PathVariable(name = "userType") String userType,
+                                              @RequestBody @Valid OrderRequestDTO orderRequestDTO) {
+        log.info("userType: {}, orderRequestDTO: {}", userType, orderRequestDTO);
+        return orderService.submitOrder(userType, orderRequestDTO);
     }
 
     //주문 상세 정보

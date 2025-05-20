@@ -70,7 +70,6 @@ ext {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
@@ -85,10 +84,6 @@ dependencies {
     // Lettuce 드라이버
     implementation 'io.lettuce:lettuce-core'
     implementation 'org.redisson:redisson-spring-boot-starter:3.25.2'
-
-    //HS512 JWT 를 검증
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-    implementation 'org.springframework.security:spring-security-oauth2-jose'
 
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
