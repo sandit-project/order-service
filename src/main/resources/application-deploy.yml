@@ -4,10 +4,10 @@ spring:
   application:
     name: order-service
   rabbitmq:
-    host: ${RABBITMQ_HOST}
-    port: ${RABBITMQ_PORT}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
+    host: ${SPRING_RABBITMQ_HOST}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USER}
+    password: ${SPRING_RABBITMQ_PASSWORD}
     connection-timeout: 5s
   r2dbc:
     username: ${SPRING_R2DBC_USER}
