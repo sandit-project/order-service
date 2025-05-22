@@ -1,0 +1,62 @@
+server:
+  port: 9004
+spring:
+  application:
+    name: order-service
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST}
+    port: ${SPRING_RABBITMQ_PORT}
+    username: ${SPRING_RABBITMQ_USER}
+    password: ${SPRING_RABBITMQ_PASSWORD}
+    connection-timeout: 5s
+  r2dbc:
+    username: ${SPRING_R2DBC_USER}
+    password: ${SPRING_R2DBC_PASSWORD}
+    url: ${SPRING_R2DBC_URL}
+  cloud:
+    function:
+      definition: orderCreated;statusChange;orderRollback
+    stream:
+      bindings:
+        orderRollback-out-0:
+          destination: order-rollback
+          content-type: application/json
+        orderCreated-out-0:
+          destination: status-change
+          content-type: application/json
+        statusChange-out-0:
+          destination: order-cooking
+          content-type: application/json
+        statusChange-in-0:
+          destination: status-change
+          content-type: application/json
+          group: ${spring.application.name}
+      rabbit:
+        bindings:
+          orderCreated-out-0:
+            producer:
+              exchange-type: topic
+              routingKeyExpression: '''order.created'''
+          statusChange-out-0:
+            producer:
+              exchange-type: direct
+              routingKeyExpression: '''order.cooking'''
+          statusChange-in-0:
+            consumer:
+              exchange-type: topic
+              bindingRoutingKey: order.cooking
+          orderRollback-out-0:
+            producer:
+              exchange-type: direct
+              routingKeyExpression: '''order.rollback'''
+
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+  data:
+    redis:
+      port: ${REDIS_PORT}
+      host: ${REDIS_URL}
+      password: ${REDIS_PASSWORD}
+      username: ${REDIS_USER}
