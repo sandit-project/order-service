@@ -29,6 +29,12 @@ jobs:
         run: |
           aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name sandit-cluster
 
+      - name: Extract EC2 IP from Terraform Outputs
+        working-directory: sandit-deployment
+        run: |
+          echo "REDIS_IP=$(terraform output -raw redis_private_ip)" >> $GITHUB_ENV
+          echo "RABBITMQ_IP=$(terraform output -raw rabbitmq_private_ip)" >> $GITHUB_ENV
+
       - name: Create Kubernetes Secrets from GitHub Secrets
         run: |
           kubectl create secret generic order-service-secrets \
@@ -55,6 +61,11 @@ jobs:
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/order-service:latest
 
+      #  환경변수 치환을 위한 배포 파일 변환
+      - name: Substitute environment variables in deployment file
+        run: |
+          envsubst < k8s/order-deployment.yml > k8s/order-deployment.rendered.yml
+
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f k8s/
+          kubectl apply -f k8s/order-deployment.rendered.yml
