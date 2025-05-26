@@ -32,15 +32,15 @@ spec:
             - containerPort: 9004
           env:
             - name: SPRING_R2DBC_URL
-              value: r2dbc:mysql://10.0.1.52:3306/order
+              value: r2dbc:mysql://sandit-mysql:3306/order
             - name: SPRING_RABBITMQ_HOST
-              value: "10.0.2.196"
+              value: $(RABBITMQ_IP)
             - name: SPRING_RABBITMQ_PORT
               value: "5672"
             - name: REDIS_PORT
               value: "6379"
             - name: REDIS_URL
-              value: "10.0.2.32"
+              value: $(REDIS_IP)
             - name: SPRING_PROFILES_ACTIVE
               value: deploy
             - name: SPRING_RABBITMQ_USER
