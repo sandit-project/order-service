@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      nodeSelector:
+        role: websocket
+      containers:
+        - name: order-service
+          image: 448049828702.dkr.ecr.ap-northeast-2.amazonaws.com/order-service:latest
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "sh", "-c", "sleep 5" ]
+          resources:
+            requests:
+              cpu: "350m"
+              memory: "500Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"
+          ports:
+            - containerPort: 9004
+          env:
+            - name: SPRING_R2DBC_URL
+              value: r2dbc:mysql://10.0.1.52:3306/order
+            - name: SPRING_RABBITMQ_HOST
+              value: "10.0.2.196"
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_URL
+              value: "10.0.2.32"
+            - name: SPRING_PROFILES_ACTIVE
+              value: deploy
+            - name: SPRING_RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: SPRING_RABBITMQ_USER
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: SPRING_RABBITMQ_PASSWORD
+            - name: SPRING_R2DBC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: SPRING_R2DBC_USER
+            - name: SPRING_R2DBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: SPRING_R2DBC_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: order-service-secrets
+                  key: REDIS_USER
