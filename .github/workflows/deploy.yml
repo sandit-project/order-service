@@ -53,8 +53,9 @@ jobs:
       - name: Extract EC2 IP from Terraform Outputs
         working-directory: sandit-deployment
         run: |
-          echo "REDIS_IP=$(terraform output -raw redis_private_ip)" >> $GITHUB_ENV
-          echo "RABBITMQ_IP=$(terraform output -raw rabbitmq_private_ip)" >> $GITHUB_ENV
+          echo "REDIS_IP=$(terraform output -raw redis_private_ip | tr -d '\r')" >> $GITHUB_ENV
+          echo "RABBITMQ_IP=$(terraform output -raw rabbitmq_private_ip | tr -d '\r')" >> $GITHUB_ENV
+          echo "MYSQL_IP=$(terraform output -raw mysql_private_ip | tr -d '\r')" >> $GITHUB_ENV
 
       - name: Create Kubernetes Secrets from GitHub Secrets
         run: |
