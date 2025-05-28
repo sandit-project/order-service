@@ -15,7 +15,7 @@ spec:
         role: websocket
       containers:
         - name: order-service
-          image: 448049828702.dkr.ecr.ap-northeast-2.amazonaws.com/order-service:latest
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/order-service:latest
           imagePullPolicy: Always
           lifecycle:
             preStop:
