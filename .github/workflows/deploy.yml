@@ -57,7 +57,6 @@ jobs:
           echo "MYSQL_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MYSQL_IP }}"
           echo "RABBITMQ_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).RABBITMQ_IP }}"
           echo "REDIS_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).REDIS_IP }}"
-          echo "MONGODB_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MONGODB_IP }}"
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
@@ -102,7 +101,6 @@ jobs:
           MYSQL_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MYSQL_IP }}
           RABBITMQ_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).RABBITMQ_IP }}
           REDIS_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).REDIS_IP }}
-          MONGODB_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MONGODB_IP }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
