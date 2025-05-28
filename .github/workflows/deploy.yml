@@ -47,7 +47,7 @@ jobs:
           version: 'latest'   # 원하는 버전 지정 가능 (예: 'v1.27.3')
 
       - name: Download env from deployment artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: env-vars
           path: .
