@@ -43,18 +43,14 @@ jobs:
           TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
         run: terraform init -input=false
 
-      - name: Load and Export Terraform Outputs
+      - name: Load Terraform Outputs into GitHub Environment
         run: |
           OUTPUTS_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             https://app.terraform.io/api/v2/workspaces/${{ secrets.TERRAFORM_WORKSPACE_ID }}/current-state-version \
             | jq -r '.data.relationships.outputs.links.related')
 
-          echo "Exporting Terraform outputs..."
           curl -s -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" "$OUTPUTS_URL" \
-            | jq -r '.data[] | "export \(.attributes.name)=\(.attributes.value)"' >> temp-exports.sh
-
-          cat temp-exports.sh
-          source temp-exports.sh
+            | jq -r '.data[] | "\(.attributes.name)=\(.attributes.value)"' >> $GITHUB_ENV
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
