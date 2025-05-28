@@ -39,6 +39,8 @@ jobs:
       # 이 step은 apply를 수행하지 않고, 기존 backend의 상태를 로드만 함
       - name: Terraform init
         working-directory: sandit-deployment
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
         run: terraform init -input=false
 
       - name: Install kubectl
