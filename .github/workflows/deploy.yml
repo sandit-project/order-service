@@ -49,8 +49,13 @@ jobs:
             https://app.terraform.io/api/v2/workspaces/${{ secrets.TERRAFORM_WORKSPACE_ID }}/current-state-version \
             | jq -r '.data.relationships.outputs.links.related')
 
+          echo "Getting Terraform outputs..."
           curl -s -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" "$OUTPUTS_URL" \
-            | jq -r '.data[] | "\(.attributes.name)=\(.attributes.value)"' >> $GITHUB_ENV
+            | jq -r '.data[] | "echo \(.attributes.name)=\(.attributes.value | tostring) >> $GITHUB_ENV"' \
+            | bash
+
+      - name: Print GitHub Environment Variables
+        run: printenv | grep _IP
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
