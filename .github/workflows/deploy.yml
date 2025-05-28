@@ -34,6 +34,7 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.6.6  # 원하는 버전 넣기
+          terraform_wrapper: false
 
       # Terraform 상태를 읽기 위해 반드시 init을 먼저 실행
       # 이 step은 apply를 수행하지 않고, 기존 backend의 상태를 로드만 함
@@ -42,20 +43,21 @@ jobs:
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
         run: terraform init -input=false
+      # Terraform Cloud Outputs를 공식 액션으로 불러오기
+      - name: Fetch Terraform Cloud Outputs
+        id: fetch
+        uses: hashicorp-forge/terraform-cloud-outputs-action@v1
+        with:
+          token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          organization: "sandit"
+          workspace: "sandit"
 
-      - name: Load Terraform Outputs into GitHub Environment
+      - name: Print loaded Terraform outputs
         run: |
-          OUTPUTS_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
-            https://app.terraform.io/api/v2/workspaces/${{ secrets.TERRAFORM_WORKSPACE_ID }}/current-state-version \
-            | jq -r '.data.relationships.outputs.links.related')
-
-          echo "Getting Terraform outputs..."
-          curl -s -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" "$OUTPUTS_URL" \
-            | jq -r '.data[] | "echo \(.attributes.name)=\(.attributes.value | tostring) >> $GITHUB_ENV"' \
-            | bash
-
-      - name: Print GitHub Environment Variables
-        run: printenv | grep _IP
+          echo "MYSQL_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MYSQL_IP }}"
+          echo "RABBITMQ_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).RABBITMQ_IP }}"
+          echo "REDIS_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).REDIS_IP }}"
+          echo "MONGODB_IP=${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MONGODB_IP }}"
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
@@ -97,8 +99,12 @@ jobs:
       # 환경변수 치환을 위한 배포 파일 변환
       - name: Substitute environment variables in deployment file
         run: |
-          export AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
-          export AWS_REGION=${{ secrets.AWS_REGION }}
+          MYSQL_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MYSQL_IP }}
+          RABBITMQ_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).RABBITMQ_IP }}
+          REDIS_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).REDIS_IP }}
+          MONGODB_IP: ${{ fromJSON(steps.fetch.outputs.workspace-outputs-json).MONGODB_IP }}
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
           envsubst < k8s/deployment.yml > k8s/deployment.rendered.yml
 
       - name: Deploy to Kubernetes
