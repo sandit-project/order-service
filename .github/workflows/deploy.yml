@@ -41,29 +41,25 @@ jobs:
         working-directory: sandit-deployment
         run: terraform init -input=false
 
-      - name: Terraform plan
-        working-directory: sandit-deployment
-        run: terraform plan -out=tfplan
-
-      - name: Terraform apply
-        working-directory: sandit-deployment
-        run: terraform apply -auto-approve tfplan
-
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'   # 원하는 버전 지정 가능 (예: 'v1.27.3')
 
+      - name: Download env from deployment artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: env-vars
+          path: .
+
+      - name: Export .env to GITHUB_ENV
+        run: |
+          cat .env >> $GITHUB_ENV
+
       - name: Configure kubeconfig for EKS cluster
         run: |
           aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name sandit-cluster
 
-      - name: Extract EC2 IP from Terraform Outputs
-        working-directory: sandit-deployment
-        run: |
-          echo REDIS_IP=$(terraform output -raw redis_private_ip | tr -d '\r') >> $GITHUB_ENV
-          echo RABBITMQ_IP=$(terraform output -raw rabbitmq_private_ip | tr -d '\r') >> $GITHUB_ENV
-          echo MYSQL_IP=$(terraform output -raw mysql_private_ip | tr -d '\r') >> $GITHUB_ENV
 
       - name: Create Kubernetes Secrets from GitHub Secrets
         run: |
