@@ -1,6 +1,7 @@
 package com.example.orderservice.rabbit;
 
 import com.example.orderservice.event.OrderCreatedMessage;
+import com.example.orderservice.order.domain.AlarmMessageDTO;
 import com.example.orderservice.order.domain.OrderStatus;
 import com.example.orderservice.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
@@ -17,7 +19,7 @@ import java.util.function.Consumer;
 @Configuration
 @RequiredArgsConstructor
 public class OrderStreamListener {
-
+    private final WebClient webClient;
     private final OrderService orderService;
     private final StreamBridge streamBridge;
 
@@ -46,6 +48,13 @@ public class OrderStreamListener {
                             return statusChangeMono.then(sendToQueue("statusChange-out-0", message));
                         } else {
                             log.info("[statusChange] status=ORDER_COOKING이 아니므로 큐 전송 생략");
+                            if (targetStatus == OrderStatus.ORDER_CONFIRMED) {
+                                sendAlarmByStatus(message.merchantUid(), "주문이 접수 되었습니다.", "ORDER_CONFIRMED");
+                            } else if (targetStatus == OrderStatus.ORDER_DELIVERING) {
+                                sendAlarmByStatus(message.merchantUid(), "배달이 시작 되었습니다.", "ORDER_DELIVERING");
+                            } else if (targetStatus == OrderStatus.ORDER_DELIVERED) {
+                                sendAlarmByStatus(message.merchantUid(), "배달이 완료 되었습니다.", "ORDER_DELIVERED");
+                            }
                             return statusChangeMono;
                         }
                     })
@@ -90,5 +99,44 @@ public class OrderStreamListener {
             }
             return null;
         });
+    }
+
+    private void sendAlarmByStatus(String merchantUid, String messageText, String eventType) {
+        orderService.getUserAndSocialUidByMerchantUid(merchantUid)
+                .subscribe(result -> {
+                    Long receiverUid;
+                    String receiverType;
+
+                    if (result.getUserUid() != null) {
+                        receiverUid = result.getUserUid();
+                        receiverType = "user";
+                    } else if (result.getSocialUid() != null) {
+                        receiverUid = result.getSocialUid();
+                        receiverType = "social";
+                    } else {
+                        log.warn("User UID와 Social UID 모두 null입니다. 알람 전송 생략.");
+                        return;
+                    }
+
+                    AlarmMessageDTO alarm = AlarmMessageDTO.builder()
+                            .merchantUid(merchantUid)
+                            .eventType(eventType)
+                            .sender("System")
+                            .receiverUid(receiverUid)
+                            .receiverType(receiverType)
+                            .message(messageText)
+                            .build();
+
+                    webClient.post()
+                            .uri("/alarm") // 알람 전송용 API 경로
+                            .bodyValue(alarm)
+                            .retrieve()
+                            .toBodilessEntity()
+                            .doOnSuccess(response -> log.info("알람 전송 완료: {}", alarm))
+                            .doOnError(error -> log.error("알람 전송 실패", error))
+                            .subscribe();
+                }, error -> {
+                    log.error("유저 정보 조회 실패", error);
+                });
     }
 }

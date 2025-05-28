@@ -60,3 +60,7 @@ spring:
       host: ${REDIS_URL}
       password: ${REDIS_PASSWORD}
       username: ${REDIS_USER}
+
+app:
+  websocket:
+    url: ${WEBSOCKET_URL}

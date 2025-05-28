@@ -56,6 +56,11 @@ public class OrderService {
         return orderRepository.findByMerchantUid(merchantUid);
     }
 
+    // merchant_uid로 고객 uid만 조회
+    public Mono<UserSocialUidDTO> getUserAndSocialUidByMerchantUid(String merchantUid) {
+        return orderRepository.findUserAndSocialUidByMerchantUid(merchantUid);
+    }
+
     // 유저 UID로 주문 전체 조회
     public Flux<Order> findAllByUserUid(String userType, Integer userUid) {
         if("USER".equals(userType)){
@@ -310,6 +315,9 @@ public class OrderService {
         if (from == OrderStatus.PAYMENT_COMPLETED && to == OrderStatus.ORDER_CONFIRMED) return true;
         // 주문 수락 → 조리 중 허용 (사장님)
         if (from == OrderStatus.ORDER_CONFIRMED && to == OrderStatus.ORDER_COOKING) return true;
+        // 배달
+        if (from == OrderStatus.ORDER_COOKING && to == OrderStatus.ORDER_DELIVERING) return true;
+        if (from == OrderStatus.ORDER_DELIVERING && to == OrderStatus.ORDER_DELIVERED) return true;
         return false;
     }
 

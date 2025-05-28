@@ -73,3 +73,5 @@ spec:
                 secretKeyRef:
                   name: order-service-secrets
                   key: REDIS_USER
+            - name: WEBSOCKET_URL
+              value: http://${DOMAIN_NAME}
