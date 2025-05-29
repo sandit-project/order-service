@@ -28,15 +28,16 @@ public class RedissonConfig {
 
         String redisUrl = "redis://" + host + ":" + port;
 
-        config.useSingleServer()
+        var singleServerConfig = config.useSingleServer()
                 .setAddress(redisUrl);
 
         if (password != null && !password.isBlank()) {
-            config.useSingleServer().setPassword(password);
+            singleServerConfig.setPassword(password);
         }
 
-        // 대부분의 Redis는 username 미사용이므로 실제 설정에 따라 판단 필요
-        config.useSingleServer().setUsername(username); // 필요 시만 활성화
+        if (username != null && !username.isBlank()) {
+            singleServerConfig.setUsername(username);
+        }
 
         return Redisson.create(config);
     }
