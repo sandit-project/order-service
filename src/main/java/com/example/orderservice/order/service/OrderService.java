@@ -292,10 +292,10 @@ public class OrderService {
                     }
 
                     // 2. 일반 상태 전이 검증 (예시: 한 단계만 허용)
-                    if (!isValidTransition(current, targetStatus)) {
-                        return Mono.error(new IllegalStateException(
-                                "상태 전이 불가: " + current + " → " + targetStatus));
-                    }
+//                    if (!isValidTransition(current, targetStatus)) {
+//                        return Mono.error(new IllegalStateException(
+//                                "상태 전이 불가: " + current + " → " + targetStatus));
+//                    }
 
                     // 실제 상태 변경
                     return Flux.fromIterable(orders)
