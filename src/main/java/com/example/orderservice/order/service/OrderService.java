@@ -448,9 +448,10 @@ public class OrderService {
 
                     // 롤백: from 상태로 되돌림
                     return orderRepository.findByMerchantUid(merchantUid)
-                            .flatMap(order -> {
-                                order.setStatus(from); // 롤백
-                                return orderRepository.save(order);
+                            .collectList()
+                            .flatMapMany(orders -> {
+                                orders.forEach(o -> o.setStatus(from)); // 일괄 롤백
+                                return orderRepository.saveAll(orders);
                             })
                             .then(Mono.fromRunnable(() -> {
                                 OrderCreatedMessage rollbackMsg = OrderCreatedMessage.builder()
