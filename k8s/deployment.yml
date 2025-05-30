@@ -74,4 +74,4 @@ spec:
                   name: order-service-secrets
                   key: REDIS_USER
             - name: WEBSOCKET_URL
-              value: wss://ws.himedia-a.com
+              value: https://ws.himedia-a.com
