@@ -283,7 +283,7 @@ public class OrderService {
 
                     OrderStatus current = orders.get(0).getStatus();
 
-                    // 1. 취소 상태로의 전이 예외 처리
+                    // 취소 상태로의 전이 예외 처리
                     if (targetStatus == OrderStatus.ORDER_CANCELLED) {
                         // 배달 완료, 배달 중, 조리 중, 주문 접수일 때 취소 불가
                         if (current == OrderStatus.ORDER_DELIVERED || current == OrderStatus.ORDER_DELIVERING || current == OrderStatus.ORDER_COOKING || current == OrderStatus.ORDER_CONFIRMED) {
@@ -291,11 +291,6 @@ public class OrderService {
                         }
                     }
 
-                    // 2. 일반 상태 전이 검증 (예시: 한 단계만 허용)
-//                    if (!isValidTransition(current, targetStatus)) {
-//                        return Mono.error(new IllegalStateException(
-//                                "상태 전이 불가: " + current + " → " + targetStatus));
-//                    }
 
                     // 실제 상태 변경
                     return Flux.fromIterable(orders)
