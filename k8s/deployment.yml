@@ -74,4 +74,4 @@ spec:
                   name: order-service-secrets
                   key: REDIS_USER
             - name: WEBSOCKET_URL
-              value: http://a456d9d74bb014d47ade6fc6f3bee3dd-1269815072.ap-northeast-2.elb.amazonaws.com
+              value: http://a701eacf86a8e4d5ebed4e6caed8c45d-467001470.ap-northeast-2.elb.amazonaws.com
