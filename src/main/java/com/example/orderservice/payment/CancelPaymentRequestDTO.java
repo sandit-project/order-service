@@ -11,6 +11,7 @@ import lombok.ToString;
 @ToString
 public class CancelPaymentRequestDTO {
     @NotBlank
+    @JsonProperty("merchant_uid")
     private String merchantUid;
     private String reason;
 }
