@@ -35,13 +35,11 @@ public class OrderController {
     }
 
     @GetMapping("/merchant/{merchantUid}")
-    public List<OrderDetailResponseDTO> getOrdersByMerchantUid(@PathVariable String merchantUid) {
+    public Mono<List<OrderDetailResponseDTO>> getOrdersByMerchantUid(@PathVariable String merchantUid) {
         return orderService.getOrderByMerchantUid(merchantUid)
                 .map(this::convertToSingleDetailDTO)
-                .collectList()
-                .block();
+                .collectList();
     }
-
 
     @GetMapping("/{uid}")
     public Mono<OrderDetailResponseDTO> getOrderByUid(@PathVariable Integer uid) {
