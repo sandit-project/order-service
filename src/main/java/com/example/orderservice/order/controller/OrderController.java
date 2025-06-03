@@ -192,6 +192,7 @@ public class OrderController {
                                 StoreOrderResponseDTO dto = new StoreOrderResponseDTO();
                                 dto.setMerchantUid(merchantUid);
                                 dto.setUserUid(sample.getUserUid());
+                                dto.setSocialUid(sample.getSocialUid());
                                 dto.setCreatedDate(sample.getCreatedDate());
                                 dto.setReservationDate(sample.getReservationDate());
                                 dto.setStatus(sample.getStatus());
