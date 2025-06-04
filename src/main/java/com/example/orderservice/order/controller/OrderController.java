@@ -1,6 +1,7 @@
 package com.example.orderservice.order.controller;
 
 import com.example.orderservice.order.domain.*;
+import com.example.orderservice.order.model.DeliveryAddress;
 import com.example.orderservice.order.model.Order;
 import com.example.orderservice.order.service.OrderService;
 import com.example.orderservice.payment.PreparePaymentRequestDTO;
@@ -25,37 +26,36 @@ public class OrderController {
 
     private final OrderService orderService;
     private final StreamBridge streamBridge;
+    private final DeliveryAddressRepository deliveryAddressRepository;
 
     @GetMapping
     public Mono<OrderDetailResponseDTO> getOrders() {
         return orderService.findAllOrders()
                 .collectList()
-                .map(this::convertToDetailDTO)
+                .flatMap(this::convertToDetailDTO)
                 .switchIfEmpty(Mono.empty());
     }
 
     @GetMapping("/merchant/{merchantUid}")
-    public Mono<List<OrderDetailResponseDTO>> getOrdersByMerchantUid(@PathVariable String merchantUid) {
+    public Flux<OrderDetailResponseDTO> getOrdersByMerchantUid(@PathVariable String merchantUid) {
         return orderService.getOrderByMerchantUid(merchantUid)
-                .map(this::convertToSingleDetailDTO)
-                .collectList();
+                .flatMap(this::convertToSingleDetailDTO); // flatMap으로
     }
 
     @GetMapping("/{uid}")
     public Mono<OrderDetailResponseDTO> getOrderByUid(@PathVariable Integer uid) {
         return orderService.getOrderByUid(uid)
-                .map(order -> convertToDetailDTO(List.of(order)));
+                .flatMap(order -> convertToDetailDTO(List.of(order)));
     }
 
     @GetMapping("/user/{userType}/{userUid}")
-    public Mono<List<OrderDetailResponseDTO>> findAllByUserUid(
+    public Flux<OrderDetailResponseDTO> findAllByUserUid(
             @PathVariable(name = "userType") String userType,
             @PathVariable(name = "userUid") Integer userUid
     ) {
         log.info("findAllByUserUid var: {},{}", userType, userUid);
         return orderService.findAllByUserUid(userType, userUid)
-                .map(this::convertToSingleDetailDTO)
-                .collectList();
+                .flatMap(this::convertToSingleDetailDTO);
     }
 
     @GetMapping("/user/delivering/{userType}/{userUid}")
@@ -83,56 +83,84 @@ public class OrderController {
     }
 
     //주문 상세 정보
-    private OrderDetailResponseDTO convertToDetailDTO(List<Order> orders) {
+    private Mono<OrderDetailResponseDTO> convertToDetailDTO(List<Order> orders) {
         if (orders == null || orders.isEmpty()) {
             throw new IllegalArgumentException("No orders found");
         }
 
         Order firstOrder = orders.get(0);
 
-        List<CartItemRequestDTO> items = orders.stream()
-                .map(order -> new CartItemRequestDTO(
-                        order.getUid(),
-                        order.getMenuName(),
-                        order.getAmount(),
-                        order.getPrice(),
-                        order.getCalorie(),
-                        order.getVersion()
-                ))
-                .collect(Collectors.toList());
+        return deliveryAddressRepository.findByMerchantUid(firstOrder.getMerchantUid())
+                .defaultIfEmpty(new DeliveryAddress())  // 주소 없으면 빈 객체
+                .map(addrEntity -> {
+                    DeliveryAddressDTO addrDto = DeliveryAddressDTO.builder()
+                            .addressStart(addrEntity.getAddressStart())
+                            .addressStartLat(addrEntity.getAddressStartLat())
+                            .addressStartLan(addrEntity.getAddressStartLan())
+                            .addressDestination(addrEntity.getAddressDestination())
+                            .addressDestinationLat(addrEntity.getAddressDestinationLat())
+                            .addressDestinationLan(addrEntity.getAddressDestinationLan())
+                            .build();
 
-        return OrderDetailResponseDTO.builder()
-                .uid(firstOrder.getUid())
-                .userUid(firstOrder.getUserUid())
-                .items(items)
-                .merchantUid(firstOrder.getMerchantUid())
-                .storeUid(firstOrder.getStoreUid())
-                .payment(firstOrder.getPayment())
-                .status(String.valueOf(firstOrder.getStatus()))
-                .createdDate(firstOrder.getCreatedDate())
-                .reservationDate(firstOrder.getReservationDate())
-                .build();
+                    List<CartItemRequestDTO> items = orders.stream()
+                            .map(order -> new CartItemRequestDTO(
+                                    order.getUid(),
+                                    order.getMenuName(),
+                                    order.getAmount(),
+                                    order.getPrice(),
+                                    order.getCalorie(),
+                                    order.getVersion()
+                            ))
+                            .collect(Collectors.toList());
+
+                    return OrderDetailResponseDTO.builder()
+                            .uid(firstOrder.getUid())
+                            .userUid(firstOrder.getUserUid())
+                            .items(items)
+                            .merchantUid(firstOrder.getMerchantUid())
+                            .storeUid(firstOrder.getStoreUid())
+                            .payment(firstOrder.getPayment())
+                            .status(String.valueOf(firstOrder.getStatus()))
+                            .deliveryAddress(addrDto)
+                            .createdDate(firstOrder.getCreatedDate())
+                            .reservationDate(firstOrder.getReservationDate())
+                            .build();
+                });
     }
 
-    private OrderDetailResponseDTO convertToSingleDetailDTO(Order order) {
-        return OrderDetailResponseDTO.builder()
-                .uid(order.getUid())
-                .userUid(order.getUserUid())
-                .storeUid(order.getStoreUid())
-                .merchantUid(order.getMerchantUid())
-                .items(List.of(new CartItemRequestDTO(
-                        order.getUid(),
-                        order.getMenuName(),
-                        order.getAmount(),
-                        order.getPrice(),
-                        order.getCalorie(),
-                        order.getVersion()
-                )))
-                .payment(order.getPayment())
-                .status(order.getStatus().toString())
-                .createdDate(order.getCreatedDate())
-                .reservationDate(order.getReservationDate())
-                .build();
+    private Mono<OrderDetailResponseDTO> convertToSingleDetailDTO(Order order) {
+        return deliveryAddressRepository.findByMerchantUid(order.getMerchantUid())
+                .defaultIfEmpty(new DeliveryAddress()) // fallback
+                .map(addrEntity -> {
+                    DeliveryAddressDTO addrDto = DeliveryAddressDTO.builder()
+                            .addressStart(addrEntity.getAddressStart())
+                            .addressStartLat(addrEntity.getAddressStartLat())
+                            .addressStartLan(addrEntity.getAddressStartLan())
+                            .addressDestination(addrEntity.getAddressDestination())
+                            .addressDestinationLat(addrEntity.getAddressDestinationLat())
+                            .addressDestinationLan(addrEntity.getAddressDestinationLan())
+                            .build();
+
+                    return OrderDetailResponseDTO.builder()
+                            .uid(order.getUid())
+                            .userUid(order.getUserUid())
+                            .storeUid(order.getStoreUid())
+                            .merchantUid(order.getMerchantUid())
+                            .items(List.of(new CartItemRequestDTO(
+                                    order.getUid(),
+                                    order.getMenuName(),
+                                    order.getAmount(),
+                                    order.getPrice(),
+                                    order.getCalorie(),
+                                    order.getVersion()
+                            )))
+                            .payment(order.getPayment())
+                            .status(order.getStatus().toString())
+                            .deliveryAddress(addrDto)
+                            .createdDate(order.getCreatedDate())
+                            .reservationDate(order.getReservationDate())
+                            .build();
+                });
     }
 
     @PostMapping("/update-success")
